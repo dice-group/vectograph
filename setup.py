@@ -11,7 +11,8 @@ setup(
                       'pandas>=1.0.3',
                       'rdflib>=5.0.0',
                       'matplotlib>=3.2.1',
-                      'torch'],
+                      'torch',
+                      'umap-learn'],
     author='Caglar Demir',
     author_email='caglardemir8@gmail.com',
     classifiers=[
