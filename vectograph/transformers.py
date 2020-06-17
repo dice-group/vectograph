@@ -6,6 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
+import umap
 
 class RDFGraphCreator(BaseEstimator, TransformerMixin):
     def __init__(self, path, dformat):
@@ -86,7 +87,6 @@ class KGCreator(BaseEstimator, TransformerMixin):
                     triple = subject + '\t' + predicate + '\t' + str(obj) + '\n'
                     writer.write(triple)
                     kg.append(triple)
-
         return Data(kg=kg)
 
 
@@ -115,6 +115,8 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         """
         self.params['num_entities'] = len(data.entities)
         self.params['num_relations'] = len(data.relations)
+        self.params['num_tail_entities'] = len(data.tails)
+
         kge_name = self.params['kge']
 
         if kge_name == 'DistMult':
@@ -123,18 +125,17 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
                         'num_relations': len(data.relations), 'input_dropout': 0.2})
             self.model.init()
 
-        print(self.model)
-        print(self.params)
-
         train_data_idxs = data.get_data_idxs(data.triples)
         er_vocab = data.get_er_vocab(train_data_idxs)
         er_vocab_pairs = list(er_vocab.keys())
 
         opt = torch.optim.Adam(self.model.parameters())
+        losses = []
 
+        print('Training starts.')
         for it in range(1, self.num_epochs + 1):
             self.model.train()
-            losses = []
+            losses_per_epoch=[]
             np.random.shuffle(er_vocab_pairs)
             for j in range(0, len(er_vocab_pairs), self.batch_size):
                 data_batch, targets = data.get_batch(er_vocab, er_vocab_pairs, j,self.batch_size)
@@ -145,7 +146,28 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
                 loss = self.model.loss(predictions, targets)
                 loss.backward()
                 opt.step()
-                losses.append(loss.item())
-
+                losses_per_epoch.append(loss.item())
+            losses.append(sum(losses_per_epoch))
         plt.plot(losses)
         plt.show()
+
+        entity_emb=self.model.state_dict()['emb_e.weight'].numpy()
+        relation_emb=self.model.state_dict()['emb_rel.weight'].numpy()
+
+        fit = umap.UMAP()
+        entity_low=fit.fit_transform(entity_emb)
+        plt.scatter(entity_low[:, 0], entity_low[:, 1])
+        plt.title('Distmult Entitiy embeddings')
+        plt.show()
+
+        """
+        relation_emb=fit.fit_transform(relation_emb)
+
+        plt.scatter(relation_emb[:, 0], relation_emb[:, 1])
+        plt.title('Distmult Entitiy embeddings')
+        plt.show()
+        """
+
+        exit(1)
+
+

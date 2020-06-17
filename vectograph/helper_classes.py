@@ -10,6 +10,7 @@ class Data:
         self.cuda=False
         del kg
         self.entities = self.get_entities(self.triples)
+        self.tails = self.get_tails(self.triples)
         self.relations = self.get_relations(self.triples)
 
         self.entity_idxs = {self.entities[i]: i for i in range(len(self.entities))}
@@ -38,6 +39,10 @@ class Data:
         entities = sorted(list(set([d[0] for d in data] + [d[2] for d in data])))
         return entities
 
+    @staticmethod
+    def get_tails(data):
+        tails = sorted(list(set([d[2] for d in data])))
+        return tails
 
 
     def get_er_vocab(self, data):

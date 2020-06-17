@@ -29,8 +29,8 @@ temp_df.index = 'Event_' + temp_df.index.astype(str)
 updated_cols = []
 for col in temp_df.columns:
     if len(temp_df[col].unique()) > 50:
-        temp_df.loc[:, col + '_range'] = pd.qcut(temp_df[col], 20,
-                                                 labels=[col + '_quantile_' + str(i) for i in range(20)])
+        temp_df.loc[:, col + '_range'] = pd.qcut(temp_df[col], 40,
+                                                 labels=[col + '_quantile_' + str(i) for i in range(40)])
         updated_cols.append(col)
 
 temp_df = ignore_columns(temp_df, updated_cols)
@@ -39,11 +39,11 @@ temp_df = ignore_columns(temp_df, updated_cols)
 kg_path = path_of_folder + tabular_csv_data_name
 pipe = Pipeline([('createkg', KGCreator(path=kg_path)),
                  ('embeddings', ApplyKGE(params={'kge': 'DistMult',
-                                                 'embedding_dim': 50,
-                                                 'batch_size': 64,
-                                                 'num_epochs': 50}))])
+                                                 'embedding_dim': 100,
+                                                 'batch_size': 256,
+                                                 'num_epochs': 100}))])
 
-pipe.fit_transform(X=temp_df)
+pipe.fit_transform(X=temp_df.select_dtypes(include='category'))
 
 
 """# ################################ DATA CLEANING pertaining to
