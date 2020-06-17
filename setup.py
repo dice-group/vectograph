@@ -10,7 +10,8 @@ setup(
     install_requires=['scikit-learn==0.22.1',
                       'pandas>=1.0.3',
                       'rdflib>=5.0.0',
-                      'matplotlib>=3.2.1'],
+                      'matplotlib>=3.2.1',
+                      'torch'],
     author='Caglar Demir',
     author_email='caglardemir8@gmail.com',
     classifiers=[

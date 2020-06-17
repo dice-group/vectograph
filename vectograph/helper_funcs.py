@@ -2,6 +2,8 @@ import os
 from rdflib import Graph, Literal, URIRef, Namespace  # basic RDF handling
 from rdflib.namespace import XSD  # most common namespaces
 import pandas as pd
+from .kge_models import DistMult
+from .helper_classes import Data
 
 def create_RDF_Graph(df):
     def save(X):
@@ -72,6 +74,14 @@ def create_knowledge_graph(df: pd.DataFrame):
     g.serialize(path_of_folder + tabular_data_name + '.nt', format='ntriples')
     return path_of_folder + tabular_data_name + '.nt'
 
+
 def apply_PYKE(t):
-    g,path=t
+    g, path = t
     os.system("python PYKE/execute.py --K 20 --kg_path {0}".format(path))
+
+
+def apply_DistMult(kg):
+    data=Data(kg)
+    model = DistMult()
+
+    exit(1)
