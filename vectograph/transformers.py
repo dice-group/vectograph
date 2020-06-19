@@ -172,7 +172,7 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         plt.plot(losses)
         plt.show()
 
-        return self.model
+        return self.model,data
         """
         
         entity_emb=self.model.state_dict()['emb_e.weight'].numpy()

@@ -41,9 +41,35 @@ pipe = Pipeline([('createkg', KGCreator(path=kg_path)),
                                                  'batch_size': 256,
                                                  'num_epochs': 10}))])
 
-model = pipe.fit_transform(X=temp_df.select_dtypes(include='category'))
+model, kg = pipe.fit_transform(X=temp_df.select_dtypes(include='category'))
 
-print(model)
+# This depends on the model as some KGE learns core tensor, complex numbers etc.
+entity_emb = model.state_dict()['emb_e.weight'].numpy()
+relation_emb = model.state_dict()['emb_rel.weight'].numpy()
+
+emb = pd.DataFrame(entity_emb, index=kg.entities)
+rel = pd.DataFrame(relation_emb, index=kg.relations)
+
+emb.to_csv('entitiy_emb.csv')
+rel.to_csv('relation_emb.csv')
+
+"""
+
+
+fit = umap.UMAP()
+entity_low=fit.fit_transform(entity_emb)
+plt.scatter(entity_low[:, 0], entity_low[:, 1])
+plt.title('Distmult Entitiy embeddings')
+plt.show()
+"""
+
+"""
+relation_emb=fit.fit_transform(relation_emb)
+
+plt.scatter(relation_emb[:, 0], relation_emb[:, 1])
+plt.title('Distmult Entitiy embeddings')
+plt.show()
+"""
 
 """# ################################ DATA CLEANING pertaining to
 # order_csv.###################################################################
