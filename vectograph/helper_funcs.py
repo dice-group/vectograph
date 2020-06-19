@@ -2,7 +2,7 @@ import os
 from rdflib import Graph, Literal, URIRef, Namespace  # basic RDF handling
 from rdflib.namespace import XSD  # most common namespaces
 import pandas as pd
-from .kge_models import DistMult
+from .kge_models import Distmult
 from .helper_classes import Data
 
 def create_RDF_Graph(df):
@@ -82,6 +82,6 @@ def apply_PYKE(t):
 
 def apply_DistMult(kg):
     data=Data(kg)
-    model = DistMult()
+    model = Distmult()
 
     exit(1)

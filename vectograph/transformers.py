@@ -1,12 +1,13 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 from rdflib import Graph, URIRef, Namespace  # basic RDF handling
-from .kge_models import DistMult
+from .kge_models import *
 from .helper_classes import Data
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
 import umap
+
 
 class RDFGraphCreator(BaseEstimator, TransformerMixin):
     def __init__(self, path, dformat):
@@ -119,11 +120,31 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
 
         kge_name = self.params['kge']
 
-        if kge_name == 'DistMult':
-            self.model = DistMult(
+        if kge_name == 'Distmult':
+            self.model = Distmult(
                 params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
                         'num_relations': len(data.relations), 'input_dropout': 0.2})
-            self.model.init()
+        elif kge_name == 'Tucker':
+            self.model = Tucker(
+                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
+                        'num_relations': len(data.relations), 'input_dropout': 0.2})
+        elif kge_name == 'Hyper':
+            self.model = Hyper(
+                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
+                        'num_relations': len(data.relations), 'input_dropout': 0.2})
+        elif kge_name == 'Conve':
+            self.model = Conve(
+                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
+                        'num_relations': len(data.relations), 'input_dropout': 0.2, 'feature_map_dropout': 0.1,
+                        'conv_out': 4, 'hidden_dropout': 0.2, 'projection_size': 24})
+        elif kge_name == 'Complex':
+            self.model = Complex(
+                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
+                        'num_relations': len(data.relations), 'input_dropout': 0.2})
+        else:
+            print(kge_name, ' is not found')
+            exit(1)
+        self.model.init()
 
         train_data_idxs = data.get_data_idxs(data.triples)
         er_vocab = data.get_er_vocab(train_data_idxs)
@@ -135,10 +156,10 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         print('Training starts.')
         for it in range(1, self.num_epochs + 1):
             self.model.train()
-            losses_per_epoch=[]
+            losses_per_epoch = []
             np.random.shuffle(er_vocab_pairs)
             for j in range(0, len(er_vocab_pairs), self.batch_size):
-                data_batch, targets = data.get_batch(er_vocab, er_vocab_pairs, j,self.batch_size)
+                data_batch, targets = data.get_batch(er_vocab, er_vocab_pairs, j, self.batch_size)
                 opt.zero_grad()
                 e1_idx = torch.tensor(data_batch[:, 0])
                 r_idx = torch.tensor(data_batch[:, 1])
@@ -151,6 +172,9 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         plt.plot(losses)
         plt.show()
 
+        return self.model
+        """
+        
         entity_emb=self.model.state_dict()['emb_e.weight'].numpy()
         relation_emb=self.model.state_dict()['emb_rel.weight'].numpy()
 
@@ -159,6 +183,7 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         plt.scatter(entity_low[:, 0], entity_low[:, 1])
         plt.title('Distmult Entitiy embeddings')
         plt.show()
+        """
 
         """
         relation_emb=fit.fit_transform(relation_emb)
@@ -167,7 +192,3 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         plt.title('Distmult Entitiy embeddings')
         plt.show()
         """
-
-        exit(1)
-
-

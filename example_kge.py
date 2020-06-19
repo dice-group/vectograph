@@ -1,5 +1,4 @@
 import pandas as pd
-from sklearn.preprocessing import FunctionTransformer
 from sklearn.pipeline import Pipeline
 from vectograph.utils import ignore_columns, num_unique_values_per_column
 from vectograph.transformers import ApplyKGE, KGCreator
@@ -35,16 +34,16 @@ for col in temp_df.columns:
 
 temp_df = ignore_columns(temp_df, updated_cols)
 
-
 kg_path = path_of_folder + tabular_csv_data_name
 pipe = Pipeline([('createkg', KGCreator(path=kg_path)),
-                 ('embeddings', ApplyKGE(params={'kge': 'DistMult',
-                                                 'embedding_dim': 100,
+                 ('embeddings', ApplyKGE(params={'kge': 'Conve',  # Distmult,Complex,Tucker,Hyper
+                                                 'embedding_dim': 10,
                                                  'batch_size': 256,
-                                                 'num_epochs': 100}))])
+                                                 'num_epochs': 10}))])
 
-pipe.fit_transform(X=temp_df.select_dtypes(include='category'))
+model = pipe.fit_transform(X=temp_df.select_dtypes(include='category'))
 
+print(model)
 
 """# ################################ DATA CLEANING pertaining to
 # order_csv.###################################################################

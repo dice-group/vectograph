@@ -1,15 +1,12 @@
-
 import torch
-
 from torch.nn import functional as F, Parameter
 import numpy as np
-
 from torch.nn.init import xavier_normal_
 
 
-class DistMult(torch.nn.Module):
+class Distmult(torch.nn.Module):
     def __init__(self, params):
-        super(DistMult, self).__init__()
+        super(Distmult, self).__init__()
         self.name = 'Distmult'
         self.emb_e = torch.nn.Embedding(params['num_entities'], params['embedding_dim'], padding_idx=0)
         self.emb_rel = torch.nn.Embedding(params['num_relations'], params['embedding_dim'], padding_idx=0)
@@ -38,22 +35,24 @@ class DistMult(torch.nn.Module):
         return pred
 
 
-class TuckER(torch.nn.Module):
-    def __init__(self, d, d1, d2, **kwargs):
-        super(TuckER, self).__init__()
+class Tucker(torch.nn.Module):
+    def __init__(self, params):
+        super(Tucker, self).__init__()
         self.name = 'Tucker'
-        self.E = torch.nn.Embedding(len(d.entities), d1, padding_idx=0)
-        self.R = torch.nn.Embedding(len(d.relations), d2, padding_idx=0)
-        self.W = torch.nn.Parameter(torch.tensor(np.random.uniform(-1, 1, (d2, d1, d1)),
-                                                 dtype=torch.float, requires_grad=True))
 
-        self.input_dropout = torch.nn.Dropout(kwargs["input_dropout"])
-        self.hidden_dropout1 = torch.nn.Dropout(kwargs["hidden_dropout1"])
-        self.hidden_dropout2 = torch.nn.Dropout(kwargs["hidden_dropout2"])
+        self.E = torch.nn.Embedding(params['num_entities'], params['embedding_dim'], padding_idx=0)
+        self.R = torch.nn.Embedding(params['num_relations'], params['embedding_dim'], padding_idx=0)
+        self.W = torch.nn.Parameter(torch.tensor(
+            np.random.uniform(-1, 1, (params['embedding_dim'], params['embedding_dim'], params['embedding_dim'])),
+            dtype=torch.float, requires_grad=True))
+
+        self.input_dropout = torch.nn.Dropout(0.1)
+        self.hidden_dropout1 = torch.nn.Dropout(0.1)
+        self.hidden_dropout2 = torch.nn.Dropout(0.1)
         self.loss = torch.nn.BCELoss()
 
-        self.bn0 = torch.nn.BatchNorm1d(d1)
-        self.bn1 = torch.nn.BatchNorm1d(d1)
+        self.bn0 = torch.nn.BatchNorm1d(params['embedding_dim'])
+        self.bn1 = torch.nn.BatchNorm1d(params['embedding_dim'])
 
     def init(self):
         xavier_normal_(self.E.weight.data)
@@ -79,17 +78,27 @@ class TuckER(torch.nn.Module):
         return pred
 
 
-class HypER(torch.nn.Module):
-    def __init__(self, kwargs):
-        super(HypER, self).__init__()
+class Hyper(torch.nn.Module):
+    def __init__(self, params):
+        super(Hyper, self).__init__()
         self.name = 'Hyper'
         self.in_channels = 1
-        self.out_channels = kwargs["conv_out"]
-        self.filt_h = kwargs["filt_h"]
-        self.filt_w = kwargs["filt_w"]
 
-        self.E = torch.nn.Embedding(kwargs['num_entities'], kwargs['embedding_dim'], padding_idx=0)
-        self.R = torch.nn.Embedding(kwargs['num_relations'], kwargs['embedding_dim'], padding_idx=0)
+        if 'conv_out' not in params:
+            self.out_channels = 32
+        else:
+            self.out_channels = params["conv_out"]
+
+        if 'filt_h' not in params:
+            self.filt_h = 1
+
+        if 'filt_w' not in params:
+            self.filt_w = 9
+        else:
+            self.filt_w = params['filt_w']
+
+        self.E = torch.nn.Embedding(params['num_entities'], params['embedding_dim'], padding_idx=0)
+        self.R = torch.nn.Embedding(params['num_relations'], params['embedding_dim'], padding_idx=0)
         self.inp_drop = torch.nn.Dropout(0.2)
         self.hidden_drop = torch.nn.Dropout(0.3)
         self.feature_map_drop = torch.nn.Dropout2d(0.2)
@@ -97,12 +106,12 @@ class HypER(torch.nn.Module):
 
         self.bn0 = torch.nn.BatchNorm2d(self.in_channels)
         self.bn1 = torch.nn.BatchNorm2d(self.out_channels)
-        self.bn2 = torch.nn.BatchNorm1d(kwargs['embedding_dim'])
-        self.register_parameter('b', Parameter(torch.zeros(kwargs['num_entities'])))
-        fc_length = (1 - self.filt_h + 1) * (kwargs['embedding_dim'] - self.filt_w + 1) * self.out_channels
-        self.fc = torch.nn.Linear(fc_length, kwargs['embedding_dim'])
+        self.bn2 = torch.nn.BatchNorm1d(params['embedding_dim'])
+        self.register_parameter('b', Parameter(torch.zeros(params['num_entities'])))
+        fc_length = (1 - self.filt_h + 1) * (params['embedding_dim'] - self.filt_w + 1) * self.out_channels
+        self.fc = torch.nn.Linear(fc_length, params['embedding_dim'])
         fc1_length = self.in_channels * self.out_channels * self.filt_h * self.filt_w
-        self.fc1 = torch.nn.Linear(kwargs['embedding_dim'], fc1_length)
+        self.fc1 = torch.nn.Linear(params['embedding_dim'], fc1_length)
 
     def init(self):
         xavier_normal_(self.E.weight.data)
@@ -139,26 +148,26 @@ class HypER(torch.nn.Module):
         return pred
 
 
-class ConvE(torch.nn.Module):
-    def __init__(self, args):
-        super(ConvE, self).__init__()
+class Conve(torch.nn.Module):
+    def __init__(self, params):
+        super(Conve, self).__init__()
         self.name = 'Conve'
-        self.emb_e = torch.nn.Embedding(args['num_entities'], args['embedding_dim'], padding_idx=0)
-        self.emb_rel = torch.nn.Embedding(args['num_relations'], args['embedding_dim'], padding_idx=0)
-        self.inp_drop = torch.nn.Dropout(args['input_dropout'])
-        self.hidden_drop = torch.nn.Dropout(args['hidden_dropout'])
-        self.feature_map_drop = torch.nn.Dropout2d(args['feature_map_dropout'])
+        self.emb_e = torch.nn.Embedding(params['num_entities'], params['embedding_dim'], padding_idx=0)
+        self.emb_rel = torch.nn.Embedding(params['num_relations'], params['embedding_dim'], padding_idx=0)
+        self.inp_drop = torch.nn.Dropout(params['input_dropout'])
+        self.hidden_drop = torch.nn.Dropout(params['hidden_dropout'])
+        self.feature_map_drop = torch.nn.Dropout2d(params['feature_map_dropout'])
         self.loss = torch.nn.BCELoss()
 
-        self.emb_dim1 = args['embedding_dim'] // 5
-        self.emb_dim2 = args['embedding_dim'] // self.emb_dim1
+        self.emb_dim1 = params['embedding_dim'] // 5
+        self.emb_dim2 = params['embedding_dim'] // self.emb_dim1
 
-        self.conv1 = torch.nn.Conv2d(1, args['conv_out'], (3, 3), 1, 0, bias=True)
+        self.conv1 = torch.nn.Conv2d(1, params['conv_out'], (3, 3), 1, 0, bias=True)
         self.bn0 = torch.nn.BatchNorm2d(1)
-        self.bn1 = torch.nn.BatchNorm2d(args['conv_out'])
-        self.bn2 = torch.nn.BatchNorm1d(args['embedding_dim'])
-        self.register_parameter('b', Parameter(torch.zeros(args['num_entities'])))
-        self.fc = torch.nn.Linear(args['projection_size'], args['embedding_dim'])
+        self.bn1 = torch.nn.BatchNorm2d(params['conv_out'])
+        self.bn2 = torch.nn.BatchNorm1d(params['embedding_dim'])
+        self.register_parameter('b', Parameter(torch.zeros(params['num_entities'])))
+        self.fc = torch.nn.Linear(params['projection_size'], params['embedding_dim'])
 
     def init(self):
         xavier_normal_(self.emb_e.weight.data)
@@ -187,19 +196,19 @@ class ConvE(torch.nn.Module):
 
 
 class Complex(torch.nn.Module):
-    def __init__(self, args):
+    def __init__(self, params):
         super(Complex, self).__init__()
         self.name = 'Complex'
-        self.num_entities = args['num_entities']
-        self.num_relations = args['num_relations']
-        self.embedding_dim = args['embedding_dim']
+        self.num_entities = params['num_entities']
+        self.num_relations = params['num_relations']
+        self.embedding_dim = params['embedding_dim']
 
         self.emb_e_real = torch.nn.Embedding(self.num_entities, self.embedding_dim,
                                              padding_idx=0)
         self.emb_e_img = torch.nn.Embedding(self.num_entities, self.embedding_dim, padding_idx=0)
         self.emb_rel_real = torch.nn.Embedding(self.num_relations, self.embedding_dim, padding_idx=0)
         self.emb_rel_img = torch.nn.Embedding(self.num_relations, self.embedding_dim, padding_idx=0)
-        self.inp_drop = torch.nn.Dropout(args['input_dropout'])
+        self.inp_drop = torch.nn.Dropout(params['input_dropout'])
         self.loss = torch.nn.BCELoss()
 
         self.bn0_1 = torch.nn.BatchNorm1d(self.embedding_dim)
