@@ -62,9 +62,10 @@ class KGCreator(BaseEstimator, TransformerMixin):
     Direct convertion to txt file.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, with_brackets=True):
         self.kg_path = path
         self.model = None
+        self.with_brackets = with_brackets
 
     def fit(self, x, y=None):
         """
@@ -80,15 +81,23 @@ class KGCreator(BaseEstimator, TransformerMixin):
         :param df:
         :return:
         """
-        self.kg_path += '.txt'
+        self.kg_path += '.nt'
         kg = []
         with open(self.kg_path, 'w') as writer:
-            for subject, row in df.iterrows():
-                for predicate, obj in row.iteritems():
-                    triple = subject + '\t' + predicate + '\t' + str(obj) + '\n'
-                    writer.write(triple)
-                    kg.append(triple)
-        return Data(kg=kg)
+            if self.with_brackets:
+                for subject, row in df.iterrows():
+                    for predicate, obj in row.iteritems():
+                        triple = '<' + subject + '>' + '\t' + '<' + predicate + '>' + '\t' + '<' + str(obj) + '>' + '\n'
+                        writer.write(triple)
+                        kg.append(triple)
+            else:
+                for subject, row in df.iterrows():
+                    for predicate, obj in row.iteritems():
+                        triple = subject + '\t' + predicate + '\t' + str(obj) + '\n'
+                        writer.write(triple)
+                        kg.append(triple)
+
+        return Data(kg=kg), self.kg_path
 
 
 class ApplyKGE(BaseEstimator, TransformerMixin):
@@ -108,12 +117,13 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         """
         return self
 
-    def transform(self, data):
+    def transform(self, input_):
         """
 
         :param df:
         :return:
         """
+        data, _ = input_
         self.params['num_entities'] = len(data.entities)
         self.params['num_relations'] = len(data.relations)
         self.params['num_tail_entities'] = len(data.tails)
@@ -172,7 +182,7 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         plt.plot(losses)
         plt.show()
 
-        return self.model,data
+        return self.model, data
         """
         
         entity_emb=self.model.state_dict()['emb_e.weight'].numpy()

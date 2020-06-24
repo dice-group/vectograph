@@ -19,7 +19,6 @@ df = ignore_columns(df, ['customer_id', 'customer_name', 'customer_number', 'log
                          'box_number_in_site'])
 df.dropna(axis='columns', thresh=len(df) // 3, inplace=True)  # drop columns having 30% NaN values.
 # TODO Unfortunately, changed_at column could not recognized as datetime due to "T" in value ,i.e, 2015-04-16 T04:14:00
-# TODO: takes quite some time.
 temp_df = df.head(1000)
 temp_df['changed_at'] = pd.to_datetime(temp_df.changed_at)
 
@@ -35,7 +34,7 @@ for col in temp_df.columns:
 temp_df = ignore_columns(temp_df, updated_cols)
 
 kg_path = path_of_folder + tabular_csv_data_name
-pipe = Pipeline([('createkg', KGCreator(path=kg_path)),
+pipe = Pipeline([('createkg', KGCreator(path=kg_path,with_brackets=False)),
                  ('embeddings', ApplyKGE(params={'kge': 'Conve',  # Distmult,Complex,Tucker,Hyper
                                                  'embedding_dim': 10,
                                                  'batch_size': 256,
@@ -43,39 +42,26 @@ pipe = Pipeline([('createkg', KGCreator(path=kg_path)),
 
 model, kg = pipe.fit_transform(X=temp_df.select_dtypes(include='category'))
 
+
 # This depends on the model as some KGE learns core tensor, complex numbers etc.
 entity_emb = model.state_dict()['emb_e.weight'].numpy()
 relation_emb = model.state_dict()['emb_rel.weight'].numpy()
-
 emb = pd.DataFrame(entity_emb, index=kg.entities)
 rel = pd.DataFrame(relation_emb, index=kg.relations)
-
-emb.to_csv('entitiy_emb.csv')
-rel.to_csv('relation_emb.csv')
+emb.to_csv(model.name+'_entitiy_emb.csv')
+rel.to_csv(model.name+'_relation_emb.csv')
 
 """
 
-
+APPLY UMAP
 fit = umap.UMAP()
 entity_low=fit.fit_transform(entity_emb)
 plt.scatter(entity_low[:, 0], entity_low[:, 1])
 plt.title('Distmult Entitiy embeddings')
 plt.show()
-"""
 
-"""
 relation_emb=fit.fit_transform(relation_emb)
-
 plt.scatter(relation_emb[:, 0], relation_emb[:, 1])
 plt.title('Distmult Entitiy embeddings')
 plt.show()
-"""
-
-"""# ################################ DATA CLEANING pertaining to
-# order_csv.###################################################################
-df.drop(columns=['customer_id', 'customer_name', 'customer_number', 'op_group_id', 'logistic_type'
-                                                                                   'site_id', 'deliver_mon',
-                 'deliver_tue', 'deliver_wed', 'deliver_thu', 'deliver_fri', 'customer_number', 'order_number',
-                 'every_week', 'supplier_id'], inplace=True)
-################################# DATA CLEANING ###################################################################
 """
