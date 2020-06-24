@@ -35,7 +35,7 @@ temp_df = ignore_columns(temp_df, updated_cols)
 
 kg_path = path_of_folder + tabular_csv_data_name
 pipe = Pipeline([('createkg', KGCreator(path=kg_path,with_brackets=False)),
-                 ('embeddings', ApplyKGE(params={'kge': 'Conve',  # Distmult,Complex,Tucker,Hyper
+                 ('embeddings', ApplyKGE(params={'kge': 'Distmult',  # D,Complex,Tucker,Hyper
                                                  'embedding_dim': 10,
                                                  'batch_size': 256,
                                                  'num_epochs': 10}))])
@@ -44,7 +44,7 @@ model, kg = pipe.fit_transform(X=temp_df.select_dtypes(include='category'))
 
 
 # This depends on the model as some KGE learns core tensor, complex numbers etc.
-entity_emb = model.state_dict()['emb_e.weight'].numpy()
+entity_emb = model.state_dict()['emb_e.weight'].numpy() # E.weight, R.weight
 relation_emb = model.state_dict()['emb_rel.weight'].numpy()
 emb = pd.DataFrame(entity_emb, index=kg.entities)
 rel = pd.DataFrame(relation_emb, index=kg.relations)
@@ -52,7 +52,6 @@ emb.to_csv(model.name+'_entitiy_emb.csv')
 rel.to_csv(model.name+'_relation_emb.csv')
 
 """
-
 APPLY UMAP
 fit = umap.UMAP()
 entity_low=fit.fit_transform(entity_emb)

@@ -14,7 +14,7 @@ pd.set_option('display.width', 1000)
 
 start_time=time.time()
 path_of_folder = '/home/demir/Desktop/data_files/'
-tabular_csv_data_name = 'stock_change'  # (2903564, 15)
+tabular_csv_data_name = 'stock_change'  # (2_903_564, 15)
 # DASK can be applied.
 df = pd.read_csv(path_of_folder + tabular_csv_data_name + '.csv', index_col=0, low_memory=False)
 # num_unique_values_per_column(df)
