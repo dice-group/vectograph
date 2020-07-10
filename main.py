@@ -65,7 +65,7 @@ if __name__ == '__main__':
     logger = create_logger(name='Vectograph', p=storage_path)
 
     # DASK can be applied.
-    df = pd.read_csv(tabularpath, low_memory=False).head(100)
+    df = pd.read_csv(tabularpath, low_memory=False)
     df.index = 'Event_' + df.index.astype(str)
 
     num_rows, num_cols = df.shape  # at max num_rows times num_cols columns.
