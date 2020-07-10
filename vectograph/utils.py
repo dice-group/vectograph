@@ -3,7 +3,7 @@ import logging
 import os
 
 
-def create_experiment_folder(folder_name='Experiments'):
+def create_experiment_folder(folder_name='Vectograph_Results'):
     directory = os.getcwd() + '/' + folder_name + '/'
     folder_name = str(datetime.datetime.now())
     path_of_folder = directory + folder_name
