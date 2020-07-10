@@ -12,11 +12,10 @@ To this end, Vectograph enables users to converts tabular data into RDF knowledg
 ```
 1) git clone https://github.com/dice-group/Vectograph.git
 2) cd Vectograph
-3) git clone https://github.com/dice-group/PYKE.git into Vectograph
+3) git clone https://github.com/dice-group/PYKE.git
 4) conda create -n temp python=3.6.2 # Or be sure that your have Python => 3.6.
 5) conda activate temp
 6) pip install -e . 
-# After you receive this Finished processing dependencies for vectograph==0.0.1
 7) python -c "import vectograph"
 ```
 ### Installation via pip (later)
