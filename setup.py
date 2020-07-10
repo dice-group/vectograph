@@ -11,7 +11,8 @@ setup(
                       'rdflib>=5.0.0',
                       'matplotlib>=3.2.1',
                       'torch',
-                      'umap-learn'],
+                      'umap-learn',
+                      'hdbscan'],
     author='Caglar Demir',
     author_email='caglardemir8@gmail.com',
     classifiers=[

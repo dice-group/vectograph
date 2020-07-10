@@ -2,13 +2,12 @@ from collections import defaultdict
 import numpy as np
 import torch
 
+
 class Data:
 
-    def __init__(self, kg, reverse=False):
-
-        self.triples = self.parse_data(kg, reverse=reverse)
-        self.cuda=False
-        del kg
+    def __init__(self, data_path: str):
+        self.triples = self.parse_data(data_path)
+        self.cuda = False
         self.entities = self.get_entities(self.triples)
         self.tails = self.get_tails(self.triples)
         self.relations = self.get_relations(self.triples)
@@ -23,10 +22,16 @@ class Data:
         return data_idxs
 
     @staticmethod
-    def parse_data(kg, reverse=False):
-        data = [i.split() for i in kg]
-        if reverse:
-            data += ([i[2], i[1] + "_reverse", i[0]] for i in data)
+    def parse_data(data_path):
+        import re
+        data = []
+        with open(data_path, "r") as f:
+            for triple in f:
+                if '"' in triple or "'" in triple:
+                    continue
+                components = re.findall('<(.+?)>', triple)
+                assert len(components) == 3
+                data.append(components)
         return data
 
     @staticmethod
@@ -44,14 +49,13 @@ class Data:
         tails = sorted(list(set([d[2] for d in data])))
         return tails
 
-
     def get_er_vocab(self, data):
         er_vocab = defaultdict(list)
         for triple in data:
             er_vocab[(triple[0], triple[1])].append(triple[2])
         return er_vocab
 
-    def get_batch(self, er_vocab, er_vocab_pairs, idx,batch_size):
+    def get_batch(self, er_vocab, er_vocab_pairs, idx, batch_size):
         batch = er_vocab_pairs[idx:idx + batch_size]
         targets = np.zeros((len(batch), len(self.entities)))
         for idx, pair in enumerate(batch):
