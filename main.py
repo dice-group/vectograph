@@ -17,6 +17,8 @@ if __name__ == '__main__':
     parser.add_argument("--tabularpath", type=str,
                         default='/home/demir/Desktop/ai4bd-smart-logistics/2020-06-26-ai4bd-smart-logistics/merged.csv',
                         nargs="?", help="Path of Tabular Data, i.e./.../data.csv")
+
+    parser.add_argument("--base_uri", type=str, default='https://ai4bd.com/resource/', nargs="?", help="Base URI.")
     # Hyper parameters for conversion
     parser.add_argument("--num_of_quantiles", type=int, default=40, nargs="?",
                         help="q param in https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.qcut.html")
@@ -26,14 +28,14 @@ if __name__ == '__main__':
     ##################################################################################################
     parser.add_argument("--model", type=str, default='Pyke', nargs="?",
                         help="Models:Distmult, Pyke")
-    # Hyperparameters of embedding models.
+    # hyperparameters of embedding models.
     parser.add_argument("--K_for_PYKE", type=int, default=10, nargs="?",
                         help="Number of iterations.")
     parser.add_argument("--embedding_dim", type=int, default=50, nargs="?",
                         help="Number of dimensions in embedding space.")
-    parser.add_argument("--num_iterations", type=int, default=200, nargs="?",
+    parser.add_argument("--num_iterations", type=int, default=10, nargs="?",
                         help="Number of iterations.")
-    parser.add_argument("--batch_size", type=int, default=256, nargs="?",
+    parser.add_argument("--batch_size", type=int, default=1024, nargs="?",
                         help="Batch size.")
     parser.add_argument("--input_dropout", type=float, default=0.1, nargs="?",
                         help="Dropout rate in input layer.")
@@ -44,6 +46,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     tabularpath = args.tabularpath
+    base_uri = args.base_uri
     num_of_quantiles = args.num_of_quantiles
     min_num_of_unique_values_per_col = args.min_num_of_unique_values_per_column
 
@@ -65,8 +68,9 @@ if __name__ == '__main__':
     logger = create_logger(name='Vectograph', p=storage_path)
 
     # DASK can be applied.
-    df = pd.read_csv(tabularpath, low_memory=False)
-    df.index = 'Event_' + df.index.astype(str)
+    df = pd.read_csv(tabularpath, low_memory=False)  # if dataset is very large use .head(1000)
+    df.index = 'Event' + df.index.astype(str)
+    df.columns = [base_uri + i for i in df.columns]
 
     num_rows, num_cols = df.shape  # at max num_rows times num_cols columns.
     column_names = df.columns
@@ -76,8 +80,8 @@ if __name__ == '__main__':
 
     for col in df.select_dtypes(exclude='object').columns:
         if len(df[col].unique()) >= min_num_of_unique_values_per_col:
-            label_names = [col + '_quantile_' + str(i) for i in range(num_of_quantiles)]
-            df.loc[:, col + '_range'] = pd.qcut(df[col].rank(method='first'), num_of_quantiles, labels=label_names)
+            label_names = [col + '_Quantile_' + str(i) for i in range(num_of_quantiles)]
+            df.loc[:, col + '_Range'] = pd.qcut(df[col].rank(method='first'), num_of_quantiles, labels=label_names)
 
     new_num_rows, new_num_cols = df.shape  # at max num_rows times num_cols columns.
 
@@ -86,7 +90,7 @@ if __name__ == '__main__':
     params.update({'storage_path': storage_path,
                    'logger': logger})
 
-    pipe = Pipeline([('createkg', KGCreator(path=storage_path,logger=logger)),
+    pipe = Pipeline([('createkg', KGCreator(path=storage_path, logger=logger)),
                      ('embeddings', ApplyKGE(params=params)),
                      ('typeprediction', TypePrediction()),
                      ('clusterpruity', ClusterPurity())

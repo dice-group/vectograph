@@ -85,6 +85,23 @@ class KGCreator(BaseEstimator, TransformerMixin):
         """
         return self
 
+    @staticmethod
+    def __valid_triple_create(subject, predicate, obj):
+        if str(obj) == 'nan':
+            obj = str(predicate) + 'Dummy'
+
+        if isinstance(obj, str):
+            obj = '<' + obj.replace(" ", "") + '>'
+        elif isinstance(obj, int):
+            obj = '"' + str(obj) + '"^^<http://www.w3.org/2001/XMLSchema#integer>'
+        elif isinstance(obj, float):
+            obj = '"' + str(obj) + '"^^<http://www.w3.org/2001/XMLSchema#double>'
+        else:
+            print(type(obj))
+            print('Literal is not understood:', obj)
+            raise TypeError
+        return '<' + subject + '>' + ' ' + '<' + predicate + '>' + ' ' + obj + ' .\n'
+
     def transform(self, df):
         """
 
@@ -97,29 +114,19 @@ class KGCreator(BaseEstimator, TransformerMixin):
         if self.logger:
             self.logger.info('Knowledge Graph (KG) is being serialized')
             self.logger.info('Note that we impute missing values by converting a dummy entity per predicate.')
-            self.logger.info('We change the type column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
+            self.logger.info('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
         else:
             print('Knowledge Graph (KG) is being serialized')
             print('Note that we impute missing values by converting a dummy entity per predicate.')
-            print('We change the type column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
+            print('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
+        # Ineffective as df.iterrows is slow, one would improve this by using JIT provided by JAX.
 
         with open(self.kg_path, 'w') as writer:
             for subject, row in df.iterrows():
                 for predicate, obj in row.iteritems():
-                    if str(predicate) == 'type':
+                    if 'resource/type' in str(predicate):
                         predicate = 'rdf-syntax-ns#type'
-
-                    if str(obj) == 'nan':
-                        obj = str(predicate) + '_dummy'
-
-                    if isinstance(obj, str):
-                        triple = '<' + subject + '>' + '\t' + '<' + predicate + '>' + '\t' + '<' + obj.replace(" ",
-                                                                                                               "") + '>' + '\n'
-                    else:
-                        triple = '<' + subject + '>' + '\t' + '<' + predicate + '>' + '\t' + '"' + str(obj).replace(' ',
-                                                                                                                    '') + '"' + '\n'
-
-                    writer.write(triple)
+                    writer.write(self.__valid_triple_create(subject, predicate, obj))
 
         return self.kg_path
 
@@ -303,7 +310,8 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
 
         vocab = deserializer(path=self.params['storage_path'], serialized_name='vocabulary')
         learned_embeddings.index = [i for i in vocab]
-        learned_embeddings.to_csv(self.params['storage_path'] + '/PYKE_'+str(self.params['embedding_dim'])+'_embd.csv')
+        learned_embeddings.to_csv(
+            self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embd.csv')
 
         # This crude workaround performed to serialize dataframe with corresponding terms.
         learned_embeddings.index = [i for i in range(len(vocab))]
