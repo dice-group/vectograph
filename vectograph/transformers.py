@@ -366,8 +366,8 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         relation_emb = model.state_dict()['emb_rel.weight'].numpy()
         emb = pd.DataFrame(entity_emb, index=data.entities)
         rel = pd.DataFrame(relation_emb, index=data.relations)
-        df = pd.concat([emb, rel])
-        df.to_csv(self.params['storage_path'] + '/' + model.name + '_embeddings.csv')
+        df_embeddings = pd.concat([emb, rel])
+        df_embeddings.to_csv(self.params['storage_path'] + '/' + model.name + '_embeddings.csv')
 
         return df_embeddings, data, self.logger
 
