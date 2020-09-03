@@ -45,7 +45,7 @@ if __name__ == '__main__':
                         help="Decay rate.")
 
     args = parser.parse_args()
-    tabularpath = args.tabularpath
+    tabular_path = args.tabularpath
     base_uri = args.base_uri
     num_of_quantiles = args.num_of_quantiles
     min_num_of_unique_values_per_col = args.min_num_of_unique_values_per_column
@@ -68,8 +68,8 @@ if __name__ == '__main__':
     logger = create_logger(name='Vectograph', p=storage_path)
 
     # DASK can be applied.
-    df = pd.read_csv(tabularpath, low_memory=False)  # if dataset is very large use .head(1000)
-    df.index = 'Event' + df.index.astype(str)
+    df = pd.read_csv(tabular_path, low_memory=False).head(1000)  # if dataset is very large use .head(1000)
+    df.index = 'Event_' + df.index.astype(str)
     df.columns = [base_uri + i for i in df.columns]
 
     num_rows, num_cols = df.shape  # at max num_rows times num_cols columns.
@@ -77,11 +77,17 @@ if __name__ == '__main__':
 
     logger.info('Original Tabular data: {0} by {1}'.format(num_rows, num_cols))
     logger.info('Quantisation starts')
-
     for col in df.select_dtypes(exclude='object').columns:
         if len(df[col].unique()) >= min_num_of_unique_values_per_col:
-            label_names = [col + '_Quantile_' + str(i) for i in range(num_of_quantiles)]
-            df.loc[:, col + '_Range'] = pd.qcut(df[col].rank(method='first'), num_of_quantiles, labels=label_names)
+            # labels indicates "the bins".
+            labels = [col + '_quantile_' + str(i) for i in range(num_of_quantiles)]
+            discretized, bin_values = pd.qcut(df[col].rank(method='first'),
+                                              num_of_quantiles, retbins=True, labels=labels)
+            df.loc[:, col + '_bin'] = discretized
+            bins = discretized.cat.categories.tolist()
+            name_file = col[col.rfind('/')+1:]  # substring: from the index of last / till the end.
+            pd.DataFrame.from_dict(dict(zip(bins, bin_values)), orient='index').to_csv(
+                storage_path + '/Mapping_' + name_file + '.csv')
 
     new_num_rows, new_num_cols = df.shape  # at max num_rows times num_cols columns.
 
@@ -96,4 +102,5 @@ if __name__ == '__main__':
                      ('clusterpruity', ClusterPurity())
                      ])
 
+    df.to_csv(storage_path + '/ProcessedTabularData.csv')
     pipe.fit_transform(df)
