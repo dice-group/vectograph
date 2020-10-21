@@ -359,7 +359,7 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         self.logger.info('Training ends.')
 
         # Perform Evaluation
-        self.evaluate_quality_of_link_prediction(data, model)
+        #self.evaluate_quality_of_link_prediction(data, model)
 
         # This depends on the model as some KGE learns core tensor, complex numbers etc.
         entity_emb = model.state_dict()['emb_e.weight'].numpy()  # E.weight, R.weight
