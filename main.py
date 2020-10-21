@@ -43,13 +43,16 @@ if __name__ == '__main__':
                         help="Learning rate.")
     parser.add_argument("--dr", type=float, default=1.0, nargs="?",
                         help="Decay rate.")
+    parser.add_argument("--evaluation", type=bool, default=False, nargs="?",
+                        help="Quantify the quality of embeddings by applying an evaluation scenario depending on the KGE model.")
 
     args = parser.parse_args()
     tabular_path = args.tabularpath
     base_uri = args.base_uri
     num_of_quantiles = args.num_of_quantiles
     min_num_of_unique_values_per_col = args.min_num_of_unique_values_per_column
-
+    eval_flag = args.evaluation
+    # TODO 'Distmult', 'Tucker', 'Conve', 'Complex' do not scale on large KGE due to 1vsN.
     possible_models = ['Pyke', 'Distmult', 'Tucker', 'Conve', 'Complex']
     try:
         assert args.model in possible_models
@@ -85,7 +88,7 @@ if __name__ == '__main__':
                                               num_of_quantiles, retbins=True, labels=labels)
             df.loc[:, col + '_bin'] = discretized
             bins = discretized.cat.categories.tolist()
-            name_file = col[col.rfind('/')+1:]  # substring: from the index of last / till the end.
+            name_file = col[col.rfind('/') + 1:]  # substring: from the index of last / till the end.
             pd.DataFrame.from_dict(dict(zip(bins, bin_values)), orient='index').to_csv(
                 storage_path + '/Mapping_' + name_file + '.csv')
 
@@ -95,12 +98,15 @@ if __name__ == '__main__':
 
     params.update({'storage_path': storage_path,
                    'logger': logger})
-
-    pipe = Pipeline([('createkg', KGCreator(path=storage_path, logger=logger)),
-                     ('embeddings', ApplyKGE(params=params)),
-                     ('typeprediction', TypePrediction()),
-                     ('clusterpruity', ClusterPurity())
-                     ])
+    if eval_flag:
+        pipe = Pipeline([('createkg', KGCreator(path=storage_path, logger=logger)),
+                         ('embeddings', ApplyKGE(params=params)),
+                         ('typeprediction', TypePrediction()),
+                         ('clusterpruity', ClusterPurity())
+                         ])
+    else:
+        pipe = Pipeline([('createkg', KGCreator(path=storage_path, logger=logger)),
+                         ('embeddings', ApplyKGE(params=params))])
 
     df.to_csv(storage_path + '/ProcessedTabularData.csv')
     pipe.fit_transform(df)
