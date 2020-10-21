@@ -173,38 +173,29 @@ class KGCreator(BaseEstimator, TransformerMixin):
         if self.logger:
             self.logger.info('Knowledge Graph (KG) is being serialized')
             self.logger.info('Note that we impute missing values by converting a dummy entity per predicate.')
-            self.logger.info('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
         else:
             print('Knowledge Graph (KG) is being serialized')
             print('Note that we impute missing values by converting a dummy entity per predicate.')
-            print('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
-
-        if 'resource/type' in df:
-            df.rename(columns={"resource/type": "rdf-syntax-ns#type"})
-
         g = Graph()
         base_iri = 'http://dakiri.org/'
-        schema = 'http://schema.org/'
 
         for subject, row in df.iterrows():
             s = URIRef(base_iri + subject)
             for predicate, obj in row.iteritems():
                 if obj == 'nan' or pd.isnull(obj):
                     obj = predicate + 'Dummy'
-
                 if isinstance(obj, int) or isinstance(obj, float):
-                    t = (s, URIRef(schema + predicate), Literal(obj))
+                    t = (s, URIRef(predicate), Literal(obj))
                 elif isinstance(obj, str):
                     obj = obj.replace(' ', '')
                     obj = obj.replace('>=', 'greater_or_equal_than_')
                     obj = obj.replace('<', 'less_than_')
                     obj = obj.replace('>', 'greater_than_')
-                    t = (s, URIRef(schema + predicate), URIRef(base_iri + obj))
+                    t = (s, URIRef(predicate), URIRef(base_iri + obj))
                 else:
                     raise ValueError
                 g.add(t)
         g.serialize(self.kg_path, format='nt')
-
         # CD: Previously we use the following chunck of code.
         """        
         with open(self.kg_path, 'w') as writer:
