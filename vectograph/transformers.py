@@ -16,8 +16,8 @@ import hdbscan
 import os
 import itertools
 from .utils import ignore_columns, create_experiment_folder, create_logger
-import PYKE
-from PYKE.helper_classes import *
+#from .PYKE import *
+from .PYKE.helper_classes import *
 
 
 class RDFGraphCreator(BaseEstimator, TransformerMixin):
