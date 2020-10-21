@@ -11,40 +11,41 @@ To this end, Vectograph enables users to converts tabular data into RDF knowledg
 ### Installation from source
 ```
 1) git clone https://github.com/dice-group/Vectograph.git
-2) conda create -n temp python=3.6.2 # Or be sure that your have Python => 3.6.
-3) conda activate temp
-4) python ontolearn/setup.py install
-# After you receive this Finished processing dependencies for OntoPy==0.0.1
-5) python -c "import vectograph"
+4) conda create -n temp python=3.6 # Or be sure that your have Python => 3.6.
+5) conda activate temp
+6) pip install -e . 
+7) python -c "import vectograph"
 ```
-### Installation via pip
+### Installation via pip (later)
 
 ```python
 pip install vectograph
 ```
 
-## Usage
-
-
+## Workflow
 ```python
-import pandas as pd
-from sklearn.pipeline import Pipeline
-from vectograph.transformers import ApplyKGE, KGCreator
+tabular_path = '...'
+base_uri = '...'
+min_num_of_unique_values_per_col = '...' # parameter for Quantile-based discretization.
+num_of_quantiles = '...' # parameter for Quantile-based discretization.
+params = { 'model': 'Pyke', 'embedding_dim': 50, 'num_iterations': 10, 'K_for_PYKE': 32}
 
-path_of_folder = '/.../data_files/'
-tabular_csv_data_name = 'example'  
-df = pd.read_csv(path_of_folder + tabular_csv_data_name + '.csv', index_col=0, low_memory=False)
-####################################
-#### Data Preprocessing ####
-####################################
-kg_path = path_of_folder + tabular_csv_data_name
-pipe = Pipeline([('createkg', KGCreator(path=kg_path)),
-                 ('embeddings', ApplyKGE(params={'kge': 'Conve',  # Distmult,Complex,Tucker,Hyper, Conve
-                                                 'embedding_dim': 10,
-                                                 'batch_size': 256,
-                                                 'num_epochs': 10}))])
-
-model = pipe.fit_transform(X=df.select_dtypes(include='category'))
-print(model)
-
+df = pd.read_csv(tabular_path) # Note that dask.dataframe.read_parquet can be applied on large tabular data.
+########################################################################################
+############### Data Preprocessing through Quantile-based discretization ###############
+# 1. Apply Quantile-based discretization for each column of the input tabular data.
+# 2. We refer pandas.qcut() https://bit.ly/3kmJDeU.
+########################################################################################
+df.to_csv(storage_path + '/ProcessedTabularData.csv') # Store discretized tabular data.
+########################################################################################
+############### Knowledge Graph Embeddings through sklearn pipeline ###############
+# 1. Create knowledge graph from discretized tabular data.
+     # 1.1 We refer KGEOnRelationalData.ipynb for details.
+# 2. Apply PYKE on (1).
+# 3. Evaluate embedding in the type prediction and cluster purity tasks. https://arxiv.org/abs/2001.07418
+pipe = Pipeline([('createkg', KGCreator(path=storage_path, logger=logger)),
+                ('embeddings', ApplyKGE(params=params)),
+                ('typeprediction', TypePrediction()),
+                ('clusterpruity', ClusterPurity())])
+pipe.fit_transform(df)
 ```
