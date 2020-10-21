@@ -71,7 +71,7 @@ if __name__ == '__main__':
     logger = create_logger(name='Vectograph', p=storage_path)
 
     # DASK can be applied.
-    df = pd.read_csv(tabular_path, low_memory=False).head(1000)  # if dataset is very large use .head(1000)
+    df = pd.read_csv(tabular_path, low_memory=False)  # if dataset is very large use .head(1000)
     df.index = 'Event_' + df.index.astype(str)
     df.columns = [base_uri + i for i in df.columns]
 
