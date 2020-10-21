@@ -389,7 +389,7 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         - Data(path_of_kg), data object.
         - self.logger: returns logger object. Not recommended.
         """
-        self.logger.info('PYKE being executed.')
+        self.logger.info('PYKE being executed with K:{0}'.format(self.params['K_for_PYKE']))
 
         parser = Parser(p_folder=self.params['storage_path'], k=self.params['K_for_PYKE'])
         parser.set_logger(self.logger)
