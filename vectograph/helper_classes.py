@@ -27,10 +27,15 @@ class Data:
         data = []
         with open(data_path, "r") as f:
             for triple in f:
-                if '"' in triple or "'" in triple:
+                if '"' in triple or "'" in triple or len(triple)==1:
                     continue
                 components = re.findall('<(.+?)>', triple)
-                assert len(components) == 3
+                try:
+                    assert len(components) == 3
+                except AssertionError:
+                    print(triple)
+                    print(len(triple))
+                    exit(1)
                 data.append(components)
         return data
 

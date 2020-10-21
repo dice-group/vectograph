@@ -1,5 +1,5 @@
 from sklearn.base import BaseEstimator, TransformerMixin
-from rdflib import Graph, URIRef, Namespace  # basic RDF handling
+from rdflib import Graph, URIRef, Namespace, Literal
 from .kge_models import *
 from collections import Counter, defaultdict
 from .helper_classes import Data
@@ -16,7 +16,6 @@ import hdbscan
 import os
 import itertools
 from .utils import ignore_columns, create_experiment_folder, create_logger
-#from .PYKE import *
 from .PYKE.helper_classes import *
 
 
@@ -76,7 +75,6 @@ class RDFGraphCreator(BaseEstimator, TransformerMixin):
         """
         print('Transformation starts')
         df.index = 'Event_' + df.index.astype(str)
-
         g = Graph()
         ppl = Namespace('http://dakiri.org/index/')
         schema = Namespace('http://schema.org/')
@@ -181,7 +179,34 @@ class KGCreator(BaseEstimator, TransformerMixin):
             print('Note that we impute missing values by converting a dummy entity per predicate.')
             print('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
 
-        # Ineffective as df.iterrows is slow, one would improve this by using JIT provided by JAX.
+        if 'resource/type' in df:
+            df.rename(columns={"resource/type": "rdf-syntax-ns#type"})
+
+        g = Graph()
+        base_iri = 'http://dakiri.org/'
+        schema = 'http://schema.org/'
+
+        for subject, row in df.iterrows():
+            s = URIRef(base_iri + subject)
+            for predicate, obj in row.iteritems():
+                if obj == 'nan' or pd.isnull(obj):
+                    obj = predicate + 'Dummy'
+
+                if isinstance(obj, int) or isinstance(obj, float):
+                    t = (s, URIRef(schema + predicate), Literal(obj))
+                elif isinstance(obj, str):
+                    obj = obj.replace(' ', '')
+                    obj = obj.replace('>=', 'greater_or_equal_than_')
+                    obj = obj.replace('<', 'less_than_')
+                    obj = obj.replace('>', 'greater_than_')
+                    t = (s, URIRef(schema + predicate), URIRef(base_iri + obj))
+                else:
+                    raise ValueError
+                g.add(t)
+        g.serialize(self.kg_path, format='nt')
+
+        # CD: Previously we use the following chunck of code.
+        """        
         with open(self.kg_path, 'w') as writer:
             for subject, row in df.iterrows():
                 for predicate, obj in row.iteritems():
@@ -189,6 +214,8 @@ class KGCreator(BaseEstimator, TransformerMixin):
                         predicate = 'rdf-syntax-ns#type'
                     writer.write(self.__valid_triple_create(subject, predicate, obj))
 
+        return self.kg_path
+        """
         return self.kg_path
 
 
@@ -359,7 +386,7 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         self.logger.info('Training ends.')
 
         # Perform Evaluation
-        #self.evaluate_quality_of_link_prediction(data, model)
+        # self.evaluate_quality_of_link_prediction(data, model)
 
         # This depends on the model as some KGE learns core tensor, complex numbers etc.
         entity_emb = model.state_dict()['emb_e.weight'].numpy()  # E.weight, R.weight
@@ -413,7 +440,8 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
             self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embeddings.csv')
         # This crude workaround performed to serialize dataframe with corresponding terms.
         learned_embeddings.index = [i for i in range(len(vocab))]
-        df_embeddings = pd.read_csv(self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embeddings.csv', index_col=0)
+        df_embeddings = pd.read_csv(
+            self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embeddings.csv', index_col=0)
         return df_embeddings, Data(path_of_kg), self.logger
 
     def transform(self, path_of_kg: str):
