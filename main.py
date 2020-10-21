@@ -52,8 +52,9 @@ if __name__ == '__main__':
     num_of_quantiles = args.num_of_quantiles
     min_num_of_unique_values_per_col = args.min_num_of_unique_values_per_column
     eval_flag = args.evaluation
-    # TODO 'Distmult', 'Tucker', 'Conve', 'Complex' do not scale on large KGE due to 1vsN.
-    possible_models = ['Pyke', 'Distmult', 'Tucker', 'Conve', 'Complex']
+    # TODO 'Distmult' would not scale well on large KGE due to 1vsN.
+    # We might want to use https://docs.ampligraph.org/en/1.3.2/
+    possible_models = ['Pyke', 'Distmult']
     try:
         assert args.model in possible_models
     except:
