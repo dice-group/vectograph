@@ -412,8 +412,9 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
 
         # This crude workaround performed to serialize dataframe with corresponding terms.
         learned_embeddings.index = [i for i in range(len(vocab))]
+        _, dim = learned_embeddings.shape
 
-        df_embeddings = pd.read_csv(self.params['storage_path'] + '/PYKE_50_embd.csv', index_col=0)
+        df_embeddings = pd.read_csv(self.params['storage_path'] + '/PYKE_' + str(dim) + '_embd.csv', index_col=0)
         return df_embeddings, Data(path_of_kg), self.logger
 
     def transform(self, path_of_kg: str):
