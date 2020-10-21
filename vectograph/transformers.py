@@ -367,7 +367,9 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         emb = pd.DataFrame(entity_emb, index=data.entities)
         rel = pd.DataFrame(relation_emb, index=data.relations)
         df_embeddings = pd.concat([emb, rel])
-        df_embeddings.to_csv(self.params['storage_path'] + '/' + model.name + '_embeddings.csv')
+
+        _, dim = df_embeddings.shape
+        df_embeddings.to_csv(self.params['storage_path'] + '/' + model.name + '_' + str(dim) + '_embeddings.csv')
 
         return df_embeddings, data, self.logger
 
@@ -408,13 +410,10 @@ class ApplyKGE(BaseEstimator, TransformerMixin):
         vocab = deserializer(path=self.params['storage_path'], serialized_name='vocabulary')
         learned_embeddings.index = [i for i in vocab]
         learned_embeddings.to_csv(
-            self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embd.csv')
-
+            self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embeddings.csv')
         # This crude workaround performed to serialize dataframe with corresponding terms.
         learned_embeddings.index = [i for i in range(len(vocab))]
-        _, dim = learned_embeddings.shape
-
-        df_embeddings = pd.read_csv(self.params['storage_path'] + '/PYKE_' + str(dim) + '_embd.csv', index_col=0)
+        df_embeddings = pd.read_csv(self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embeddings.csv', index_col=0)
         return df_embeddings, Data(path_of_kg), self.logger
 
     def transform(self, path_of_kg: str):
