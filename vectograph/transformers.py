@@ -1,10 +1,9 @@
 from sklearn.base import BaseEstimator, TransformerMixin
-from rdflib import Graph, URIRef, Namespace, Literal
+from rdflib import Graph, URIRef, Namespace  # basic RDF handling
 from .kge_models import *
 from collections import Counter, defaultdict
 from .helper_classes import Data
 import torch
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from typing import Dict, Tuple, List
@@ -12,11 +11,9 @@ import math
 import random
 from scipy.spatial.distance import cosine
 from sklearn.neighbors import NearestNeighbors
-import hdbscan
 import os
 import itertools
 from .utils import ignore_columns, create_experiment_folder, create_logger
-from .PYKE.helper_classes import *
 
 
 class RDFGraphCreator(BaseEstimator, TransformerMixin):
@@ -75,6 +72,7 @@ class RDFGraphCreator(BaseEstimator, TransformerMixin):
         """
         print('Transformation starts')
         df.index = 'Event_' + df.index.astype(str)
+
         g = Graph()
         ppl = Namespace('http://dakiri.org/index/')
         schema = Namespace('http://schema.org/')
@@ -109,7 +107,7 @@ class KGCreator(BaseEstimator, TransformerMixin):
     Note that KGCreator class appears to be significantly faster RDFGraphCreator due to omitting rdflib.
     """
 
-    def __init__(self, path, logger=None):
+    def __init__(self, path, logger=None,kg_name='Default_Name'):
         self.kg_path = path
         self.logger = logger
 
@@ -173,300 +171,34 @@ class KGCreator(BaseEstimator, TransformerMixin):
         if self.logger:
             self.logger.info('Knowledge Graph (KG) is being serialized')
             self.logger.info('Note that we impute missing values by converting a dummy entity per predicate.')
+            #self.logger.info('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
         else:
             print('Knowledge Graph (KG) is being serialized')
             print('Note that we impute missing values by converting a dummy entity per predicate.')
-        g = Graph()
-        base_iri = 'http://dakiri.org/'
+            #print('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
 
-        for subject, row in df.iterrows():
-            s = URIRef(base_iri + subject)
-            for predicate, obj in row.iteritems():
-                if obj == 'nan' or pd.isnull(obj):
-                    obj = predicate + 'Dummy'
-                if isinstance(obj, int) or isinstance(obj, float):
-                    t = (s, URIRef(predicate), Literal(obj))
-                elif isinstance(obj, str):
-                    obj = obj.replace(' ', '')
-                    obj = obj.replace('>=', 'greater_or_equal_than_')
-                    obj = obj.replace('<', 'less_than_')
-                    obj = obj.replace('>', 'greater_than_')
-                    t = (s, URIRef(predicate), URIRef(base_iri + obj))
-                else:
-                    raise ValueError
-                g.add(t)
-        g.serialize(self.kg_path, format='nt')
-        # CD: Previously we use the following chunck of code.
-        """        
+        # Ineffective as df.iterrows is slow, one would improve this by using JIT provided by JAX.
         with open(self.kg_path, 'w') as writer:
             for subject, row in df.iterrows():
                 for predicate, obj in row.iteritems():
-                    if 'resource/type' in str(predicate):
-                        predicate = 'rdf-syntax-ns#type'
                     writer.write(self.__valid_triple_create(subject, predicate, obj))
 
         return self.kg_path
-        """
-        return self.kg_path
 
+class GraphGenerator(BaseEstimator, TransformerMixin):
 
-class ApplyKGE(BaseEstimator, TransformerMixin):
-    """
-    ApplyKGE Class inherits from  BaseEstimator and  TransformerMixin so that it can be used in sklearn Pipeline
-
-    Applies a knowledge graph embedding approach.
-    """
-
-    def __init__(self, params):
-        self.params = params
-        self.cuda = torch.cuda.is_available()
-
-        if 'logger' not in params:
-            self.storage_path, _ = create_experiment_folder()
-            self.logger = create_logger(name='Vectograph', p=self.storage_path)
-        else:
-            self.logger = params['logger']
-
-    def fit(self, x, y=None):
-        """
-        :param x:
-        :param y:
-        :return:
-        """
-        return self
-
-    def evaluate_quality_of_link_prediction(self, data: Data, trained_model):
+    def __init__(self, kg_path='.', kg_name='SimpleKG.txt'):
         """
 
-        :param data:
-        :param trained_model:
-        :return:
+        :param kg_path: a path for serializing knowedge graph
+        :param logger:
+        :param kg_name:
         """
-        self.logger.info(
-            'The quality of embeddings are quantified. To this end, we randomly sampled 10 percent of ***the '
-            'training dataset***.')
-        hits = []
-        ranks = []
-        rank_per_relation = dict()
-        for i in range(10):
-            hits.append([])
-        test_data_idxs = random.sample(data.train_data_idxs, len(data.train_data_idxs) // 10)
-        inverse_relation_idx = dict(zip(data.relation_idxs.values(), data.relation_idxs.keys()))
-        er_vocab = data.get_er_vocab(data.get_data_idxs(data.triples))
-
-        for i in range(0, len(test_data_idxs), self.params['batch_size']):
-            data_batch, _ = data.get_batch(er_vocab, test_data_idxs, i, self.params['batch_size'])
-            e1_idx = torch.tensor(data_batch[:, 0])
-            r_idx = torch.tensor(data_batch[:, 1])
-            e2_idx = torch.tensor(data_batch[:, 2])
-            if self.cuda:
-                e1_idx = e1_idx.cuda()
-                r_idx = r_idx.cuda()
-                e2_idx = e2_idx.cuda()
-            predictions = trained_model.forward(e1_idx, r_idx)
-
-            for j in range(data_batch.shape[0]):
-                filt = er_vocab[(data_batch[j][0], data_batch[j][1])]
-                target_value = predictions[j, e2_idx[j]].item()
-                predictions[j, filt] = 0.0
-                predictions[j, e2_idx[j]] = target_value
-
-            sort_values, sort_idxs = torch.sort(predictions, dim=1, descending=True)
-
-            sort_idxs = sort_idxs.cpu().numpy()
-            for j in range(data_batch.shape[0]):
-                rank = np.where(sort_idxs[j] == e2_idx[j].item())[0][0]
-                ranks.append(rank + 1)
-
-                rank_per_relation.setdefault(inverse_relation_idx[data_batch[j][1]], []).append(rank + 1)
-
-                for hits_level in range(10):
-                    if rank <= hits_level:
-                        hits[hits_level].append(1.0)
-
-        self.logger.info('Hits@10: {0}'.format(sum(hits[9]) / (float(len(test_data_idxs)))))
-        self.logger.info('Hits@3: {0}'.format(sum(hits[2]) / (float(len(test_data_idxs)))))
-        self.logger.info('Hits@1: {0}'.format(sum(hits[0]) / (float(len(test_data_idxs)))))
-        self.logger.info('Mean rank: {0}'.format(np.mean(ranks)))
-        self.logger.info('Mean reciprocal rank: {0}'.format(np.mean(1. / np.array(ranks))))
-        self.logger.info('###################### Hits per relation ####################################\n')
-        for relations, ranks_ in rank_per_relation.items():
-            rank_per_relation[relations] = np.array(ranks_)
-
-            self.logger.info(
-                '{0}: Mean Reciprocal Rank: {1}'.format(relations, np.mean(1. / rank_per_relation[relations])))
-
-            hit10 = (rank_per_relation[relations] <= 10).sum() / len(rank_per_relation[relations])
-            hit3 = (rank_per_relation[relations] <= 3).sum() / len(rank_per_relation[relations])
-            hit1 = (rank_per_relation[relations] == 1).sum() / len(rank_per_relation[relations])
-
-            self.logger.info('Hits@10 for {0}: {1}'.format(relations, hit10))
-            self.logger.info('Hits@3 for {0}: {1}'.format(relations, hit3))
-            self.logger.info('Hits@1 for {0}: {1}'.format(relations, hit1))
-        self.logger.info('##########################################################\n')
-
-    def run_link_prediction_base_models(self, path_of_kg):
-        """
-        Given a path of kg in N-triples format
-
-        1) Parse kg into generated required format data. To this end, we use Data class.
-        2) Apply selected KG approach with input parameters
-        3) Evaluate the embeddings in terms of training Hit@N and MRR metrics.
-        4) returns the
-
-        :param path_of_kg: string.
-        :return:
-
-        - df_embeddings- pandas dataframe.
-        - Data(path_of_kg), data object.
-        - self.logger: returns logger object. Not recommended.
-        """
-        self.logger.info('KG is being deserialized.')
-        data = Data(path_of_kg)
-        self.logger.info('|KG|={0} after pruning literals.'.format(len(data.triples)))
-
-        model = None
-        if self.params['model'] == 'Distmult':
-            model = Distmult(
-                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
-                        'num_relations': len(data.relations), 'input_dropout': self.params['input_dropout']})
-        elif self.params['model'] == 'Tucker':
-            model = Tucker(
-                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
-                        'num_relations': len(data.relations), 'input_dropout': self.params['input_dropout']})
-        elif self.params['model'] == 'Conve':
-            model = Conve(
-                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
-                        'num_relations': len(data.relations), 'input_dropout': self.params['input_dropout'],
-                        'feature_map_dropout': 0.1,
-                        'conv_out': 4, 'hidden_dropout': 0.2, 'projection_size': 24})
-        elif self.params['model'] == 'Complex':
-            model = Complex(
-                params={'num_entities': len(data.entities), 'embedding_dim': self.params['embedding_dim'],
-                        'num_relations': len(data.relations), 'input_dropout': 0.2})
-        else:
-            print('{0} is not found'.format(kge_name))
-            raise ValueError
-
-        assert model
-        model.init()
-
-        train_data_idxs = data.get_data_idxs(data.triples)
-        er_vocab = data.get_er_vocab(train_data_idxs)
-        er_vocab_pairs = list(er_vocab.keys())
-
-        opt = torch.optim.Adam(model.parameters())
-        num_iter = self.params['num_iterations'] + 1
-        batch_size = self.params['batch_size']
-
-        if 'K_for_PYKE' in self.params:
-            del self.params['K_for_PYKE']
-        self.logger.info('Training starts with following parameters:{0}'.format(self.params))
-        for it in range(1, num_iter):
-            model.train()
-            np.random.shuffle(er_vocab_pairs)
-            for j in range(0, len(er_vocab_pairs), batch_size):
-                data_batch, targets = data.get_batch(er_vocab, er_vocab_pairs, j, batch_size)
-                opt.zero_grad()
-                e1_idx = torch.tensor(data_batch[:, 0])
-                r_idx = torch.tensor(data_batch[:, 1])
-                predictions = model.forward(e1_idx, r_idx)
-                loss = model.loss(predictions, targets)
-                loss.backward()
-                opt.step()
-        self.logger.info('Training ends.')
-
-        # Perform Evaluation
-        # self.evaluate_quality_of_link_prediction(data, model)
-
-        # This depends on the model as some KGE learns core tensor, complex numbers etc.
-        entity_emb = model.state_dict()['emb_e.weight'].numpy()  # E.weight, R.weight
-        relation_emb = model.state_dict()['emb_rel.weight'].numpy()
-        emb = pd.DataFrame(entity_emb, index=data.entities)
-        rel = pd.DataFrame(relation_emb, index=data.relations)
-        df_embeddings = pd.concat([emb, rel])
-
-        _, dim = df_embeddings.shape
-        df_embeddings.to_csv(self.params['storage_path'] + '/' + model.name + '_' + str(dim) + '_embeddings.csv')
-
-        return df_embeddings, data, self.logger
-
-    def run_pyke(self, path_of_kg):
-        """
-        Given a path of kg in N-triples format
-
-        1) Parse kg into generated required format data for PYKE.
-        2) Apply PYKE,
-        3) Serialize embeddings into csv format where indexes are the IRIs.
-        4) returns the
-
-        :param path_of_kg: string.
-        :return:
-
-        - df_embeddings- pandas dataframe.
-        - Data(path_of_kg), data object.
-        - self.logger: returns logger object. Not recommended.
-        """
-        self.logger.info('PYKE being executed with K:{0}'.format(self.params['K_for_PYKE']))
-
-        parser = Parser(p_folder=self.params['storage_path'], k=self.params['K_for_PYKE'])
-        parser.set_logger(self.logger)
-        parser.set_similarity_measure(PPMI)
-
-        model = PYKE(logger=self.logger)
-        holder = parser.pipeline_of_preprocessing(path_of_kg)
-        vocab_size = len(holder)
-
-        embeddings = randomly_initialize_embedding_space(vocab_size, self.params['embedding_dim'])
-        learned_embeddings = model.pipeline_of_learning_embeddings(e=embeddings,
-                                                                   max_iteration=self.params['num_iterations'],
-                                                                   energy_release_at_epoch=0.0414,
-                                                                   holder=holder, omega=0.45557)
-        del embeddings
-        del holder
-
-        vocab = deserializer(path=self.params['storage_path'], serialized_name='vocabulary')
-        learned_embeddings.index = [i for i in vocab]
-        learned_embeddings.to_csv(
-            self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embeddings.csv')
-        # This crude workaround performed to serialize dataframe with corresponding terms.
-        learned_embeddings.index = [i for i in range(len(vocab))]
-        df_embeddings = pd.read_csv(
-            self.params['storage_path'] + '/PYKE_' + str(self.params['embedding_dim']) + '_embeddings.csv', index_col=0)
-        return df_embeddings, Data(path_of_kg), self.logger
-
-    def transform(self, path_of_kg: str):
-        """
-
-        Given a path of serialized knowledge graph, this method applies predefined embedding model.
-
-        1) Parse kg into generated required format data for PYKE.
-        2) Apply PYKE,
-        3) Serialize embeddings into csv format where indexes are the IRIs.
-        4) returns the
-        :param path_of_kg: string.
-        :return:
-        - df_embeddings- pandas dataframe.
-        - Data(path_of_kg), data object.
-        - self.logger: returns logger object. Not recommended.
-        """
-
-        if self.params['model'] == 'Pyke':
-            return self.run_pyke(path_of_kg)
-        elif self.params['model'] in ['Distmult', 'Tucker', 'Conve', 'Complex']:
-            return self.run_link_prediction_base_models(path_of_kg)
-        else:
-            raise ValueError
-
-
-class TypePrediction(BaseEstimator, TransformerMixin):
-    """
-    TypePrediction Class inherits from  BaseEstimator and  TransformerMixin so that it can be used in sklearn Pipeline
-    Performs type prediction on input embeddings.
-    """
-
-    def __init__(self):
-        self.logger = None
+        self.kg_path = kg_path
+        self.kg_name = kg_name
+    @property
+    def path(self):
+        return self.kg_path+'/'+self.kg_name
 
     def fit(self, x, y=None):
         """
@@ -477,201 +209,87 @@ class TypePrediction(BaseEstimator, TransformerMixin):
         return self
 
     @staticmethod
-    def create_binary_type_vector(t_types, all_types):
+    def __valid_triple_create(subject, predicate, obj) -> str:
         """
-        Create binary type vector.
-        t_types={'order'}
-        all_types=['order', 'stockchange']
-        vector=[1. 0.]
-
-        :param t_types:
-        :param all_types: a list of
-        :return: a binary type vector.
-        """
-        vector = np.zeros(len(all_types))
-        i = [all_types.index(_) for _ in t_types]
-        vector[i] = 1
-        return vector
-
-    @staticmethod
-    def create_binary_type_prediction_vector(t_types, all_types):
-        """
-        Create binary type vector from iterable.
-        t_types=[{'stockchange'}]
-        all_types=['order', 'stockchange']
-        vector=[1. 0.]
-
-        :param t_types:
-        :param all_types: a list of
-        :return: a binary type vector.
-        """
-        vector = np.zeros(len(all_types))
-        i = [all_types.index(_) for _ in itertools.chain.from_iterable(t_types)]
-        vector[i] += 1
-        return vector
-
-    def transform(self, t: Tuple):
-        """
-        method performs the following computations.
-        1) Iterates triples via Data object to detect type information.
-        2) Obtains embeddings of IRIs having type information.
-        3) Applies NearestNeighbors on obtained embeddings in (2) with kd_tree algorithm to speed up the process.
-        4) Performs Type prediction as described in https://arxiv.org/abs/2001.07418
-
-        :param t: is a tuple containing pandas dataframe, Data object and logger object.
-        :return: t
-        """
-
-        embeddings, data, self.logger = t
-        type_info = defaultdict(set)
-        # get the types. Mapping from the index of subject to the index of object
-        for triple in data.triples:  # literals are removed.
-            s, p, o = triple
-
-            if 'rdf-syntax-ns#type' in p:
-                type_info[s].add(o)
-
-        # get the index of objects / get type information =>>> s #type o
-        all_types = sorted(set.union(*list(type_info.values())))
-
-        # Consider only points with type infos.
-        e_w_types = embeddings.loc[list(type_info.keys())]
-
-        self.logger.info('# of entities having type information:{0}'.format(len(e_w_types)))
-
-        neigh = NearestNeighbors(n_neighbors=10, algorithm='kd_tree', metric='euclidean',
-                                 n_jobs=-1).fit(e_w_types)
-
-        # Get similarity results for selected entities
-        df_most_similars = pd.DataFrame(neigh.kneighbors(e_w_types, return_distance=False))
-
-        # Reindex the target
-        df_most_similars.index = e_w_types.index.values
-
-        # As sklearn implementation of kneighbors returns the point itself as most similar point
-        df_most_similars.drop(columns=[0], inplace=True)
-
-        # Map back to the original indexes. KNN does not consider the index of Dataframe.
-        mapper = dict(zip(list(range(len(e_w_types))), e_w_types.index.values))
-        # The values of most similars are mapped to original vocabulary positions
-        df_most_similars = df_most_similars.applymap(lambda x: mapper[x])
-
-        k_values = [1, 3, 5, 10]
-
-        self.logger.info('K values: {0}'.format(k_values))
-        for k in k_values:
-            self.logger.info('##### {0} #####'.format(k))
-            similarities = list()
-            for _, S in df_most_similars.iterrows():
-                true_types = type_info[_]
-                type_predictions = [type_info[_] for _ in S.values[:k]]
-
-                vector_true = self.create_binary_type_vector(true_types, all_types)
-                vector_prediction = self.create_binary_type_prediction_vector(type_predictions, all_types)
-
-                sim = cosine(vector_true, vector_prediction)
-                similarities.append(1 - sim)
-
-            report = pd.DataFrame(similarities)
-            self.logger.info('Mean type prediction: {0}'.format(report.mean().values))
-
-        return embeddings, data, self.logger
-
-
-class ClusterPurity(BaseEstimator, TransformerMixin):
-    """
-    ClusterPurity Class inherits from  BaseEstimator and  TransformerMixin so that it can be used in sklearn Pipeline
-    1)Applies HDBSCAN to detect clusters in the embeddings.
-    2) Computes Cluster puirty for each cluster.
-    (1) and (2) are computed as described in https://arxiv.org/abs/2001.07418.
-    """
-
-    def __init__(self):
-        self.logger = None
-
-    def fit(self, x, y=None):
-        """
-        :param x:
-        :param y:
+        Given subject, predicate and obj we generate an RDF triple in the n-triple format.
+        :param subject:
+        :param predicate:
+        :param obj:
         :return:
         """
-        return self
+        if str(obj) == 'nan':
+            obj = str(predicate) + 'Dummy'
+
+        if isinstance(obj, str):
+            obj = '<' + obj.replace(" ", "") + '>'
+        elif isinstance(obj, int):
+            obj = '"' + str(obj) + '"^^<http://www.w3.org/2001/XMLSchema#integer>'
+        elif isinstance(obj, float):
+            obj = '"' + str(obj) + '"^^<http://www.w3.org/2001/XMLSchema#double>'
+        else:
+            print(type(obj))
+            print('Literal is not understood:', obj)
+            raise TypeError
+        try:
+            t = '<' + subject + '>' + ' ' + '<' + predicate + '>' + ' ' + obj + ' .\n'
+        except TypeError as e:
+            print(subject)
+            print(predicate)
+            print(obj)
+            print('Wrong type')
+            exit(1)
+
+        return t
 
     @staticmethod
-    def create_binary_type_vector(t_types: np.array, all_types) -> List:
+    def __sanity_checking(x):
+        try:
+            assert isinstance(x, pd.DataFrame)
+        except AssertionError:
+            print('Input must be dataframe. Exiting')
+            exit(1)
+        return x
+
+    def transform(self, df) -> List:
+        """ Tabular data into Graph conversion.
+        The index of df indicating the row in df considered as an event while each column considered as predicate.
+        Consequently. Given a df having the following form
+                                    index        col1    col2
+                                    Event_0     a      c
+                                    Event_1     b      d
+
+        We generate   triples as shown below
+                                    Event_0   col1   a
+                                    Event_0   col2   c
+                                    Event_1   col2   b
+                                    Event_1   col2   d
+
+        Note that a,b,c,d can have
+                * numerical types --including integer, float, double.
+                * category type
+                * string (called object in pandas)
+                * datetime
+        Arguments:
+        df -- a Pandas Dataframe
+        Returns:
+        kg - a string indicating the path where g is serialized.
         """
-        Create binary type vector.
-        t_types={'order'}
-        all_types=['order', 'stockchange']
-        vector=[1. 0.]
+        self.__sanity_checking(df)
+        kg = []
+        if self.kg_path is None and self.kg_name is None:
+            for subject, row in df.iterrows():
+                for predicate, obj in row.iteritems():
+                    kg.append((subject, predicate, obj))
+            return kg
+        else:
+            full_kg_path = self.kg_path+'/' + self.kg_name
+            print('Knowledge Graph (KG) is being serialized')
+            print('Note that we impute missing values by converting a dummy entity per predicate.')
 
-        :param t_types:
-        :param all_types: a list of
-        :return: a binary type vector.
-        """
-        vector = np.zeros(len(all_types))
-        i = [all_types.index(_) for _ in t_types]
-        vector[i] = 1
-        return vector
-
-    def transform(self, t: Tuple):
-        """
-           method performs the following computations.
-           1) Iterates triples via Data object to detect type information.
-           2) Obtains embeddings of IRIs having type information.
-           3) Applies HDBSCAN with default parameters on obtained embeddings
-           4) Calculate Cluster Purity as described in https://arxiv.org/abs/2001.07418
-
-           :param t: is a tuple containing pandas dataframe, Data object and logger object.
-           :return: t
-           """
-        embeddings, data, self.logger = t
-
-        type_info = defaultdict(set)
-
-        # get the types. Mapping from the index of subject to the index of object
-        for triple in data.triples:  # literals are removed.
-            s, p, o = triple
-
-            if 'rdf-syntax-ns#type' in p:
-                type_info[s].add(o)
-
-        # get the index of objects / get type information =>>> s #type o
-        all_types = sorted(set.union(*list(type_info.values())))
-
-        # Consider only points with type infos.
-        e_w_types = embeddings.loc[list(type_info.keys())]
-
-        self.logger.info('# of entities having type information:{0}'.format(len(e_w_types)))
-
-        # Apply clustering
-        clusterer = hdbscan.HDBSCAN().fit(e_w_types)
-        e_w_types['labels'] = clusterer.labels_
-
-        clusters = pd.unique(e_w_types.labels)
-
-        sum_purity = 0
-        for c in clusters:
-
-            valid_indexes_in_c = e_w_types[e_w_types.labels == c].index.values
-            sum_of_cosines = 0
-            self.logger.info('##### CLUSTER {0} #####'.format(c))
-
-            for i in valid_indexes_in_c:
-
-                # returns a set of indexes
-                types_i = type_info[i]
-
-                vector_type_i = self.create_binary_type_vector(types_i, all_types)
-
-                for j in valid_indexes_in_c:
-                    types_j = type_info[j]
-                    vector_type_j = self.create_binary_type_vector(types_j, all_types)
-                    sum_of_cosines += 1 - cosine(vector_type_i, vector_type_j)
-
-            purity = sum_of_cosines / (len(valid_indexes_in_c) ** 2)
-
-            sum_purity += purity
-
-        mean_of_scores = sum_purity / len(clusters)
-        self.logger.info('Mean of cluster purity:{0}'.format(mean_of_scores))
+            # Ineffective as df.iterrows is slow, one would improve this by using JIT provided by JAX.
+            with open(full_kg_path, 'w') as writer:
+                for subject, row in df.iterrows():
+                    for predicate, obj in row.iteritems():
+                        kg.append((subject, predicate, obj))
+                        writer.write(subject+'\t'+predicate+'\t'+str(obj)+'\n')
+            return kg
