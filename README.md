@@ -1,6 +1,6 @@
 # Vectograph
 
-Vectograph is an open-source software library for autmaticaly creating a graph  data from tabular data
+Vectograph is an open-source software library for automatically creating a graph structured data from a given tabular data.
 
 - [Installation](#installation)
 
