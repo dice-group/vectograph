@@ -29,14 +29,21 @@ import pandas as pd
 from sklearn import datasets
 
 X, y = datasets.fetch_california_housing(return_X_y=True)
-X_transformed = QCUT(min_unique_val_per_column=2, num_quantile=5).transform(pd.DataFrame(X))
+X_transformed = QCUT(min_unique_val_per_column=6, num_quantile=5).transform(pd.DataFrame(X))
 # Add prefix
 X_transformed.index = 'Event_' + X_transformed.index.astype(str)
-kg = SimpleKGCreator().transform(X_transformed)
+kg = GraphGenerator().transform(X_transformed)
+
 for s, p, o in kg:
     print(s, p, o)
 ```
 
+### Vectograph & [DAIKIRI-Embedding](https://github.com/dice-group/DAIKIRI-Embedding)
+From a tabular data to knowledge graph embeddings
+```
+# Conver the default dataset fetch_california_housing
+python main.py --kg_name ""
+```
 
 ## How to cite
 If you want to cite the framework, feel free to
