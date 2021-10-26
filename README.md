@@ -15,11 +15,9 @@ python -c "import vectograph"
 python -m pytest tests
 ```
 ### Installation via pip (later)
-
 ```
-pip install vectograph
+pip install vectograph # only a placeholder
 ```
-
 ### Using vectograph
 
 ```python
@@ -38,11 +36,28 @@ for s, p, o in kg:
     print(s, p, o)
 ```
 
-### Vectograph & [DAIKIRI-Embedding](https://github.com/dice-group/DAIKIRI-Embedding)
+### Scripting Vectograph & [DAIKIRI-Embedding](https://github.com/dice-group/DAIKIRI-Embedding)
 From a tabular data to knowledge graph embeddings
 ```
-# Conver the default dataset fetch_california_housing
-python main.py --kg_name ""
+# (1) Clone the repositories.
+git clone https://github.com/dice-group/DAIKIRI-Embedding.git
+git clone https://github.com/dice-group/vectograph.git
+# (3) Create a virtual enviroment and install the dependicies pertaining to the DAIKIRI-Embedding framework.
+conda env create -f DAIKIRI-Embedding/environment.yml
+conda activate daikiri
+# (4) Install dependencies of the vectograph framework.
+cd vectograph
+pip install -e .
+cd ..
+# (5) Create a knowledge graph by using an example dataset from sklearn.datasets.fetch_california_housing.html
+python vectograph/main.py --kg_name "ExampleKG.nt"
+# (6) Preperate data in requirement format for learning embeddings
+mkdir DefaultKGExample
+mv ExampleKG.nt DefaultKGExample/train.txt
+# (7) Generate Embeddings
+python DAIKIRI-Embedding/main.py --path_dataset_folder 'DefaultKGExample' --model 'ConEx'
+# Result: A folder named with current time created that contains
+# info.log, ConEx_entity_embeddings.csv, ConEx_relation_embeddings.csv, etc.
 ```
 
 ## How to cite
