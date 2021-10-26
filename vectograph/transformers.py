@@ -97,7 +97,7 @@ class RDFGraphCreator(BaseEstimator, TransformerMixin):
         return g, self.kg_path,
 
 
-class KGCreator(BaseEstimator, TransformerMixin):
+class KGSave(BaseEstimator, TransformerMixin):
     """
     KGCreator Class inherits from  BaseEstimator and  TransformerMixin so that it can be used in sklearn Pipeline
 
@@ -107,7 +107,7 @@ class KGCreator(BaseEstimator, TransformerMixin):
     Note that KGCreator class appears to be significantly faster RDFGraphCreator due to omitting rdflib.
     """
 
-    def __init__(self, path, logger=None,kg_name='Default_Name'):
+    def __init__(self, path, logger=None):
         self.kg_path = path
         self.logger = logger
 
@@ -167,15 +167,14 @@ class KGCreator(BaseEstimator, TransformerMixin):
         Returns:
         self.kg_path - a string indicating the path where g is serialized.
         """
-        self.kg_path += '/GeneratedKG.nt'
         if self.logger:
             self.logger.info('Knowledge Graph (KG) is being serialized')
             self.logger.info('Note that we impute missing values by converting a dummy entity per predicate.')
-            #self.logger.info('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
+            # self.logger.info('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
         else:
             print('Knowledge Graph (KG) is being serialized')
             print('Note that we impute missing values by converting a dummy entity per predicate.')
-            #print('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
+            # print('We change the *type* column name as *rdf-syntax-ns#type* to make use of PYKE evaluation.')
 
         # Ineffective as df.iterrows is slow, one would improve this by using JIT provided by JAX.
         with open(self.kg_path, 'w') as writer:
@@ -184,6 +183,7 @@ class KGCreator(BaseEstimator, TransformerMixin):
                     writer.write(self.__valid_triple_create(subject, predicate, obj))
 
         return self.kg_path
+
 
 class GraphGenerator(BaseEstimator, TransformerMixin):
 
@@ -196,9 +196,10 @@ class GraphGenerator(BaseEstimator, TransformerMixin):
         """
         self.kg_path = kg_path
         self.kg_name = kg_name
+
     @property
     def path(self):
-        return self.kg_path+'/'+self.kg_name
+        return self.kg_path + '/' + self.kg_name
 
     def fit(self, x, y=None):
         """
@@ -282,7 +283,7 @@ class GraphGenerator(BaseEstimator, TransformerMixin):
                     kg.append((subject, predicate, obj))
             return kg
         else:
-            full_kg_path = self.kg_path+'/' + self.kg_name
+            full_kg_path = self.kg_path + '/' + self.kg_name
             print('Knowledge Graph (KG) is being serialized')
             print('Note that we impute missing values by converting a dummy entity per predicate.')
 
@@ -291,5 +292,5 @@ class GraphGenerator(BaseEstimator, TransformerMixin):
                 for subject, row in df.iterrows():
                     for predicate, obj in row.iteritems():
                         kg.append((subject, predicate, obj))
-                        writer.write(subject+'\t'+predicate+'\t'+str(obj)+'\n')
+                        writer.write(self.__valid_triple_create(subject, predicate, obj))
             return kg

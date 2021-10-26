@@ -1,13 +1,14 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 from vectograph.utils import create_experiment_folder
-from vectograph.transformers import KGCreator, GraphGenerator
+from vectograph.transformers import KGSave, GraphGenerator
 import sklearn
 import pandas as pd
 
 
 class QCUT(BaseEstimator, TransformerMixin):
     """
-    Quantile-based discretization function.
+    Quantile-based discretization function based on Pandas(
+    https://pandas.pydata.org/docs/reference/api/pandas.qcut.html)
     """
 
     def __init__(self, min_unique_val_per_column=1, num_quantile=4,
