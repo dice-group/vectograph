@@ -23,7 +23,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.tabularpath is not None:
         try:
-            df = pd.read_csv(args.tabularpath)
+            df = pd.read_csv(args.tabularpath,index_col=0)
         except FileNotFoundError:
             raise FileNotFoundError(f"Could not read csv file in {args.tabularpath}")
     else:
@@ -39,3 +39,4 @@ if __name__ == '__main__':
     X_transformed.index = 'Event_' + X_transformed.index.astype(str)
     print('Graph data being generated')
     kg = GraphGenerator(kg_path=args.kg_path, kg_name=args.kg_name).transform(X_transformed)
+    print('Done!')

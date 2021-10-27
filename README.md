@@ -18,7 +18,15 @@ python -m pytest tests
 ```
 pip install vectograph # only a placeholder
 ```
+### Scripting Examples
+
 ### Using vectograph
+Create a toy dataset via sklearn. Available datasets: boston, iris, diabetes, digits, wine, and breast_cancer.
+```bash
+python create_toy_data.py --toy_dataset_name "boston"
+# Discretize each column having at least 12 unique values into 10 quantiles, otherwise do nothing
+python main.py --tabularpath "boston.csv" --kg_name "boston.nt" --num_quantile=10 --min_unique_val_per_column=12
+```
 
 ```python
 from vectograph.transformers import GraphGenerator
@@ -38,7 +46,7 @@ for s, p, o in kg:
 
 ### Scripting Vectograph & [DAIKIRI-Embedding](https://github.com/dice-group/DAIKIRI-Embedding)
 From a tabular data to knowledge graph embeddings
-```
+```bash
 # (1) Clone the repositories.
 git clone https://github.com/dice-group/DAIKIRI-Embedding.git
 git clone https://github.com/dice-group/vectograph.git
@@ -50,10 +58,13 @@ cd vectograph
 pip install -e .
 cd ..
 # (5) Create a knowledge graph by using an example dataset from sklearn.datasets.fetch_california_housing.html
-python vectograph/main.py --kg_name "ExampleKG.nt"
-# (6) Preperate data in requirement format for learning embeddings
+python create_toy_data.py --toy_dataset_name "wine"
+python main.py --tabularpath "wine.csv" --kg_name "wine.nt" --num_quantile=10 --min_unique_val_per_column=12
+# (6) Preparation for DAIKIRI-Embedding
+# (6.1) Create an experiment folder
 mkdir DefaultKGExample
-mv ExampleKG.nt DefaultKGExample/train.txt
+# (6.2) Move the RDF knowledge graph into (6.1) and rename it
+mv wine.nt DefaultKGExample/train.txt
 # (7) Generate Embeddings
 python DAIKIRI-Embedding/main.py --path_dataset_folder 'DefaultKGExample' --model 'ConEx'
 # Result: A folder named with current time created that contains
@@ -61,15 +72,14 @@ python DAIKIRI-Embedding/main.py --path_dataset_folder 'DefaultKGExample' --mode
 ```
 
 ## How to cite
-If you want to cite the framework, feel free to
+If you really like this framework and want to cite it in your work, feel free to
 ```
-@article{demir2021vectograph,
-  title={Vectograph},
-  author={Demir, Caglar},
-  journal={GitHub. Note: https://github.com/dice-group/Vectograph},
-  volume={1},
-  year={2021}
-}
+@inproceedings{demir2021convolutional,
+title={Convolutional Complex Knowledge Graph Embeddings},
+author={Caglar Demir and Axel-Cyrille Ngonga Ngomo},
+booktitle={Eighteenth Extended Semantic Web Conference - Research Track},
+year={2021},
+url={https://openreview.net/forum?id=6T45-4TFqaX}}
 ```
 
 For any further questions, please contact:  ```caglar.demir@upb.de```
