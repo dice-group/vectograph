@@ -79,14 +79,23 @@ class QCUT(BaseEstimator, TransformerMixin):
 
         # 3. Generate placeholders.
         labels = [column_name + '_quantile_' + str(i) for i in range(self.num_quantile)]
-
-        # 4. discretize
-        discretized, bin_values = pd.qcut(x=df[column_name], q=self.num_quantile, retbins=True, labels=labels,
-                                          duplicates=self.duplicates)
-        # 5. if column contrians ***/*** => # substring: from the index of last / till the end.
+        # 4. Apply the Quantile-based discretization function
+        try:
+            discretized, bin_values = pd.qcut(x=df[column_name], q=self.num_quantile, retbins=True, labels=labels,
+                                              duplicates=self.duplicates)
+        except ValueError as e:
+            print('#' * 10, end=' ')
+            print(f'Error at applying Quantile-based discretization function (https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.qcut.html)')
+            print(f'Number of quantiles per column/feature: {self.num_quantile} ')
+            print(f'Number of unique values of the column/feature {column_name}: {len(df[column_name].unique())}')
+            print(
+                f'Either reduce the number of quantile parameter or set the duplicates parameter to ***drop*** (currently {self.duplicates})')
+            raise e
+        # 5. if column contains ***/*** => # substring: from the index of last / till the end.
         name_file = column_name[column_name.rfind('/') + 1:]
-
-        pd.DataFrame.from_dict(dict(zip(discretized.cat.categories.tolist(), bin_values)), orient='index').to_csv(self.path + '/Feature_Category_' + name_file + '_Mapping.csv')
+        # 6. Save the mappings from bins to values.
+        pd.DataFrame.from_dict(dict(zip(discretized.cat.categories.tolist(), bin_values)), orient='index').to_csv(
+            self.path + '/Feature_Category_' + name_file + '_Mapping.csv')
         return 'Feature_Category_' + column_name, discretized, bin_values
 
     def transform(self, df: pd.DataFrame):
