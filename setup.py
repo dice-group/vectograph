@@ -9,8 +9,7 @@ setup(
     install_requires=['scikit-learn>=0.22.1',
                       'pytest',
                       'rdflib',
-                      'pandas>=1.0.3',
-                      'torch'],
+                      'pandas>=1.0.3'],
     author='Caglar Demir',
     author_email='caglardemir8@gmail.com',
     classifiers=[
