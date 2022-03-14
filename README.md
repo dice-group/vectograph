@@ -70,7 +70,7 @@ python create_toy_data.py --toy_dataset_name "boston"
 python main.py --tabularpath "boston.csv" --kg_name "boston.nt" --num_quantile=10 --min_unique_val_per_column=12
 ```
 
-### Scripting Vectograph & [DAIKIRI-Embedding](https://github.com/dice-group/DAIKIRI-Embedding)
+### Scripting Vectograph & [Knowledge Graph Embeddings at Scale](https://github.com/dice-group/DAIKIRI-Embedding)
 From a tabular data to knowledge graph embeddings
 ```bash
 # (1) Clone the repositories.
