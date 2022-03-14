@@ -76,25 +76,25 @@ From a tabular data to knowledge graph embeddings
 # (1) Clone the repositories.
 git clone https://github.com/dice-group/DAIKIRI-Embedding.git
 git clone https://github.com/dice-group/vectograph.git
-# (3) Create a virtual enviroment and install the dependicies pertaining to the DAIKIRI-Embedding framework.
+# (3) Create a virtual environment and install the dependencies pertaining to the DAIKIRI-Embedding framework.
 conda env create -f DAIKIRI-Embedding/environment.yml
 conda activate daikiri
 # (4) Install dependencies of the vectograph framework.
 cd vectograph
 pip install -e .
 cd ..
-# (5) Create a knowledge graph by using an example dataset from sklearn.datasets.fetch_california_housing.html
-python create_toy_data.py --toy_dataset_name "wine"
-python main.py --tabularpath "wine.csv" --kg_name "wine.nt" --num_quantile=10 --min_unique_val_per_column=12
+# (5) Create a knowledge graph by using an example dataset from sklearn.datasets wine or fetch_california_housing
+python vectograph/create_toy_data.py --toy_dataset_name "boston"
+python vectograph/main.py --tabularpath "boston.csv" --kg_name "boston.nt" --num_quantile=10 --min_unique_val_per_column=12
 # (6) Preparation for DAIKIRI-Embedding
-# (6.1) Create an experiment folder
-mkdir DefaultKGExample
-# (6.2) Move the RDF knowledge graph into (6.1) and rename it
-mv wine.nt DefaultKGExample/train.txt
+# (6.1) Create an experiment folder and Move the RDF knowledge graph into (6.1) and rename it
+mkdir Example && mv boston.nt Example/train.txt
 # (7) Generate Embeddings
-python DAIKIRI-Embedding/main.py --path_dataset_folder 'DefaultKGExample' --model 'ConEx'
-# Result: A folder named with current time created that contains
-# info.log, ConEx_entity_embeddings.csv, ConEx_relation_embeddings.csv, etc.
+python DAIKIRI-Embedding/main.py --path_dataset_folder "Example" --model "ConEx"
+# A folder named with current time created that contains following files
+# ConEx_entity_embeddings.npz    entity_to_idx.gzip  relation_to_idx.gzip
+# ConEx_relation_embeddings.csv  idx_train_df.gzip   report.json
+# configuration.json             model.pt            train_df.gzip
 ```
 
 ## How to cite
