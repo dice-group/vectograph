@@ -37,8 +37,8 @@ that consist of **n** triples.
 ## Installation
 ```
 git clone https://github.com/dice-group/Vectograph.git
-conda create -n temp python=3.6 # Or be sure that your have Python => 3.6.
-conda activate temp
+conda create -n vectograph python=3.6 # Or be sure that your have Python => 3.6.
+conda activate vectograph
 pip install -e . 
 python -c "import vectograph"
 python -m pytest tests

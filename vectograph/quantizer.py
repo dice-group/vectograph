@@ -38,8 +38,9 @@ class QCUT(BaseEstimator, TransformerMixin):
         try:
             assert isinstance(x, pd.DataFrame)
         except AssertionError:
-            print('Input must be dataframe. Exiting')
-            exit(1)
+            print(f'Input {type(x)} is not a pandas.DataFrame...')
+            x=pd.DataFrame(x)
+            print(f'Input is converted to a pandas.DataFrame {type(x)}...')
         try:
             for i in x.columns:
                 assert isinstance(i, str)
@@ -100,10 +101,11 @@ class QCUT(BaseEstimator, TransformerMixin):
 
     def transform(self, df: pd.DataFrame):
         """
-
-        :param df:
-        :return:
+        Input data is discretized via QCUT function and stored as pandas dataframe
+        :param df: df is expected to be pandas Dataframe
+        :return df: A discretized tabular data
         """
+        print('Original Tabular data: {0} by {1}'.format(*df.shape))
         df = self.__sanity_checking(df)
 
         columns_to_drop = []
