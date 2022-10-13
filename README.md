@@ -74,23 +74,20 @@ python main.py --tabularpath "boston.csv" --kg_name "boston.nt" --num_quantile=1
 From tabular data to knowledge graph embeddings : Scripting Vectograph & [Knowledge Graph Embeddings at Scale](https://github.com/dice-group/DAIKIRI-Embedding)
 ```bash
 # (1) Clone the repositories.
-git clone https://github.com/dice-group/DAIKIRI-Embedding.git
+git clone https://github.com/dice-group/dice-embeddings
 git clone https://github.com/dice-group/vectograph.git
-# (3) Create a virtual environment and install the dependencies pertaining to the DAIKIRI-Embedding framework.
-conda env create -f DAIKIRI-Embedding/environment.yml
-conda activate daikiri
-# (4) Install dependencies of the vectograph framework.
-cd vectograph
-pip install -e .
-cd ..
+# (3) Create a virtual environment and install the dependencies pertaining frameworks.
+conda create -n dice python=3.9.12 && conda activate dice
+pip3 install -r dice-embeddings/requirements.txt
+pip3 install -e vectograph/.
 # (5) Create a knowledge graph by using an example dataset from sklearn.datasets wine or fetch_california_housing
 python vectograph/create_toy_data.py --toy_dataset_name "boston"
 python vectograph/main.py --tabularpath "boston.csv" --kg_name "boston.nt" --num_quantile=10 --min_unique_val_per_column=12
-# (6) Preparation for DAIKIRI-Embedding
+# (6) Preparation for KGE
 # (6.1) Create an experiment folder and Move the RDF knowledge graph into (6.1) and rename it
 mkdir Example && mv boston.nt Example/train.txt
 # (7) Generate Embeddings
-python DAIKIRI-Embedding/main.py --path_dataset_folder "Example" --model "ConEx"
+python dice-embeddings/main.py --path_dataset_folder "Example" --model "ConEx"
 # A folder named with current time created that contains following files
 # ConEx_entity_embeddings.npz    entity_to_idx.gzip  relation_to_idx.gzip
 # ConEx_relation_embeddings.csv  idx_train_df.gzip   report.json
