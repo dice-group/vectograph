@@ -10,18 +10,18 @@ import argparse
 from sklearn.datasets import load_iris, fetch_california_housing, load_diabetes, load_digits,load_wine,load_breast_cancer
 import pandas as pd
 import os
-fixed_dataset_names = ['boston', 'iris', 'diabetes', 'digits', 'wine', 'breast_cancer']
+fixed_dataset_names = ['california', 'iris', 'diabetes', 'digits', 'wine', 'breast_cancer']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--toy_dataset_name", type=str, default='boston', help=f"Possible dataset {fixed_dataset_names}")
+    parser.add_argument("--toy_dataset_name", type=str, default='california', help=f"Possible dataset {fixed_dataset_names}")
     parser.add_argument("--path_to_save", type=str, default=None, help="Please insert the absolute path with filename,e.g. /home/.../example.csv")
     args = parser.parse_args()
     if not (args.toy_dataset_name in fixed_dataset_names):
         raise ValueError(
             f'{dataset_name} is not a toy dataset provided within sklearn\tPossible datasets{fixed_dataset_names}')
     else:
-        if args.toy_dataset_name == 'boston':
+        if args.toy_dataset_name == 'california':
             X, y = fetch_california_housing(return_X_y=True)
         elif args.toy_dataset_name == 'iris':
             X, y = load_iris(return_X_y=True)
