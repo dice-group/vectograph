@@ -20,6 +20,7 @@ if __name__ == '__main__':
                         help="Path for knowledge graph to be saved")
     parser.add_argument("--kg_name", type=str, default='DefaultKG.nt', nargs="?",
                         help="The name of a Knowledge graph in the ntriple format.")
+    parser.add_argument("--duplicates", type=str, default='raise')
 
     args = parser.parse_args()
     if args.tabularpath is not None:
@@ -34,7 +35,7 @@ if __name__ == '__main__':
 
     print('Quantisation starts')
     X_transformed = QCUT(min_unique_val_per_column=args.min_unique_val_per_column,
-                         num_quantile=args.num_quantile).transform(tabular_data)
+                         num_quantile=args.num_quantile,duplicates=args.duplicates).transform(tabular_data)
     X_transformed.index = 'Event_' + X_transformed.index.astype(str)
     print('Graph data being generated')
     kg = GraphGenerator(kg_path=args.kg_path, kg_name=args.kg_name).transform(X_transformed)
