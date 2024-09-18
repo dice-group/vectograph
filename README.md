@@ -95,14 +95,6 @@ python dice-embeddings/main.py --path_dataset_folder "Example" --model "ConEx"
 ```
 
 ## How to cite
-If you really like this framework and want to cite it in your work, feel free to
-```
-@inproceedings{demir2021convolutional,
-title={Convolutional Complex Knowledge Graph Embeddings},
-author={Caglar Demir and Axel-Cyrille Ngonga Ngomo},
-booktitle={Eighteenth Extended Semantic Web Conference - Research Track},
-year={2021},
-url={https://openreview.net/forum?id=6T45-4TFqaX}}
-```
+
 
 For any further questions, please contact:  ```caglar.demir@upb.de```
